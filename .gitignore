@@ -24,3 +24,4 @@ build/
 # Test artefacts
 /tmp/
 out.png
+test_*.png

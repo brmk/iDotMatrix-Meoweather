@@ -97,4 +97,4 @@ idotmatrix-weather/
 
 ## Status
 
-Phase: **2 (Phase 1 gate passed 2026-05-24)**. See `docs/ROADMAP.md` for the current gate.
+Phase: **3 (Phase 2 gate passed 2026-05-24)**. See `docs/ROADMAP.md` for the current gate.

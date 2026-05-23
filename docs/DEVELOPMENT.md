@@ -82,10 +82,36 @@ The `/display` endpoint rejects images that are not exactly 32×32.
 
 ## Phase 2 — rendering without hardware
 
-> **TODO:** the dev script that fetches weather and writes `out.png`.
+```bash
+# Install dependencies (once)
+npm install
 
-Inspect `out.png` directly. The panel is not involved in this phase. If the
-image is unreadable at 32×32, iterate here, not on the device.
+# Fetch live weather and write out.png
+npm run dev
+
+# Generate test PNGs for all icon types
+./node_modules/.bin/tsx src/test-icons.ts
+```
+
+Open `out.png` (or any `test_*.png`) to verify the 32×32 rendering.
+The panel is not involved in this phase.
+
+**What was implemented (verified 2026-05-24):**
+
+- `src/weather/index.ts` — fetches current conditions from Open-Meteo for
+  Ternopil, Ukraine (lat=49.5535, lon=25.5948). Returns a `WeatherSnapshot`
+  with temperature (°C, rounded integer), WMO `weatherCode`, `isDay` flag.
+  Response is cached for 10 minutes; a failed fetch leaves the cache intact.
+- `src/render/index.ts` — pure transform: `WeatherSnapshot → 32×32 RGB buffer → PNG`.
+  Zero external dependencies; uses Node's built-in `zlib.deflateSync` to write
+  valid PNG. Layout: weather icon in rows 0-17, 3×5 pixel-font temperature
+  in rows 21-25. Nine icon types: clear-day, clear-night, partly-cloudy,
+  cloudy, fog, rain, heavy-rain, snow, thunder.
+- `src/dev.ts` — fetches live weather and writes `out.png`.
+- `src/test-icons.ts` — writes one PNG per icon type for visual inspection.
+
+The dev script output confirmed live weather fetch (code=1, 12°C, night)
+and produced a valid 32×32 RGB PNG. Gate passed.
 
 ## Phase 3 — full loop
 
