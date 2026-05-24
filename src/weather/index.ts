@@ -1,13 +1,11 @@
+import { config } from "../config.js";
+
 export interface WeatherSnapshot {
   temperature: number; // Celsius, integer rounded
   weatherCode: number; // WMO weather interpretation code
   isDay: boolean;
   fetchedAt: Date;
 }
-
-// Ternopil, Ukraine
-const LATITUDE = 49.5535;
-const LONGITUDE = 25.5948;
 
 const CACHE_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -19,8 +17,8 @@ export async function fetchWeather(): Promise<WeatherSnapshot> {
   }
 
   const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", String(LATITUDE));
-  url.searchParams.set("longitude", String(LONGITUDE));
+  url.searchParams.set("latitude", String(config.latitude));
+  url.searchParams.set("longitude", String(config.longitude));
   url.searchParams.set("current", "temperature_2m,weather_code,is_day");
   url.searchParams.set("temperature_unit", "celsius");
 

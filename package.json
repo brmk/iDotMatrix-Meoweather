@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/dev.ts",
+    "start": "tsx src/main.ts",
+    "start:sidecar": "cd sidecar && .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765",
+    "dev": "concurrently --names sidecar,ts --prefix-colors cyan,yellow \"cd sidecar && .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765 --reload\" \"tsx watch src/main.ts\"",
     "build": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "concurrently": "^9.2.1",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }

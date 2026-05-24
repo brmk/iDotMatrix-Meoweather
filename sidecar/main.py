@@ -16,12 +16,12 @@ import asyncio
 import io
 import logging
 import os
-import tempfile
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from bleak import BleakScanner, AdvertisementData
-from fastapi import FastAPI, HTTPException, UploadFile
+from bleak import BleakScanner
+from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from idotmatrix.client import IDotMatrixClient
 from idotmatrix.screensize import ScreenSize
@@ -37,13 +37,21 @@ logger = logging.getLogger(__name__)
 
 DEVICE_NAME_PREFIX = "IDM-"
 SCAN_TIMEOUT = float(os.environ.get("SCAN_TIMEOUT", "15"))
-PORT = int(os.environ.get("PORT", "8765"))
 EXPECTED_SIZE = 32
+GRAFFITI_CHUNK = 255  # max pixels per set_pixels call
 
 _client: Optional[IDotMatrixClient] = None
 _device_address: Optional[str] = None
 _device_name: Optional[str] = None
 _connect_lock = asyncio.Lock()
+
+# Previous frame as a flat list of (r,g,b) tuples, row-major. None = unknown.
+_prev_frame: Optional[list[tuple[int, int, int]]] = None
+
+
+def _png_to_pixels(data: bytes) -> list[tuple[int, int, int]]:
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    return list(img.getdata())
 
 
 async def _discover_device() -> tuple[str, str]:
@@ -64,7 +72,7 @@ async def _discover_device() -> tuple[str, str]:
 
 
 async def _ensure_connected() -> IDotMatrixClient:
-    global _client, _device_address, _device_name
+    global _client, _device_address, _device_name, _prev_frame
 
     async with _connect_lock:
         if _client is not None and _client._connection_manager.is_connected():
@@ -79,8 +87,39 @@ async def _ensure_connected() -> IDotMatrixClient:
             mac_address=_device_address,
         )
         await _client.connect()
+        _prev_frame = None  # unknown screen state after (re)connect
         logger.info("Connected.")
         return _client
+
+
+async def _push_frame_diff(
+    client: IDotMatrixClient,
+    new_pixels: list[tuple[int, int, int]],
+) -> int:
+    """Send only changed pixels via graffiti. Returns number of pixels sent."""
+    global _prev_frame
+
+    prev = _prev_frame or [(0, 0, 0)] * (EXPECTED_SIZE * EXPECTED_SIZE)
+
+    # Group changed pixels by new color
+    by_color: dict[tuple[int, int, int], list[tuple[int, int]]] = defaultdict(list)
+    for idx, (new_color, old_color) in enumerate(zip(new_pixels, prev)):
+        if new_color != old_color:
+            x = idx % EXPECTED_SIZE
+            y = idx // EXPECTED_SIZE
+            by_color[new_color].append((x, y))
+
+    total = sum(len(v) for v in by_color.values())
+    if total == 0:
+        return 0
+
+    for color, coords in by_color.items():
+        # send in chunks of GRAFFITI_CHUNK
+        for i in range(0, len(coords), GRAFFITI_CHUNK):
+            await client.graffiti.set_pixels(color=color, xys=coords[i:i + GRAFFITI_CHUNK])
+
+    _prev_frame = new_pixels
+    return total
 
 
 @asynccontextmanager
@@ -114,10 +153,9 @@ async def health():
 
 
 @app.post("/display")
-async def display(file: UploadFile):
+async def display(file: UploadFile, brightness: int = Form(default=80)):
     data = await file.read()
 
-    # Validate: must be a 32x32 image
     try:
         img = Image.open(io.BytesIO(data))
         w, h = img.size
@@ -130,20 +168,16 @@ async def display(file: UploadFile):
             detail=f"Image must be {EXPECTED_SIZE}x{EXPECTED_SIZE}, got {w}x{h}.",
         )
 
+    new_pixels = _png_to_pixels(data)
     client = await _ensure_connected()
 
-    # Write to a temp file because the library takes a file path
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        tmp.write(data)
-        tmp_path = tmp.name
-
     try:
-        await client.image.set_mode()
-        await client.image.upload_image_file(file_path=tmp_path)
+        brightness = max(5, min(100, brightness))
+        await client.set_brightness(brightness_percent=brightness)
+        changed = await _push_frame_diff(client, new_pixels)
+        logger.info(f"Updated {changed} pixels")
     except Exception as exc:
-        logger.error(f"Failed to push image to panel: {exc}")
+        logger.exception("Failed to push frame")
         raise HTTPException(status_code=502, detail=f"Panel error: {exc}")
-    finally:
-        os.unlink(tmp_path)
 
-    return {"ok": True}
+    return {"ok": True, "changed_pixels": changed}

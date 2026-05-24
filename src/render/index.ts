@@ -341,12 +341,20 @@ function rgbToPng(rgb: Uint8Array): Buffer {
 
 // ---- Public API ----
 
+function applyNightTint(buf: Uint8Array): void {
+  for (let i = 0; i < buf.length; i += 3) {
+    buf[i + 1] = Math.round((buf[i + 1] ?? 0) * 0.85); // green -15%
+    buf[i + 2] = Math.round((buf[i + 2] ?? 0) * 0.45); // blue  -55%
+  }
+}
+
 export function render(snapshot: WeatherSnapshot): Uint8Array {
   const buf = mkBuf();
   drawIcon(buf, codeToIcon(snapshot.weatherCode, snapshot.isDay));
   const sign = snapshot.temperature < 0 ? "-" : "";
   const temp = String(Math.abs(snapshot.temperature));
   drawText(buf, `${sign}${temp}°C`, 21, 255, 255, 255);
+  if (!snapshot.isDay) applyNightTint(buf);
   return buf;
 }
 

@@ -4,7 +4,4 @@ python-multipart>=0.0.20
 pillow>=11.2.1
 bleak>=0.22.3
 cryptography>=45.0.0
-matplotlib>=3.10.0
-watchdog>=6.0.0
-# idotmatrix-api-client is installed as an editable local package;
-# see docs/DEVELOPMENT.md for the one-time setup command.
+idotmatrix @ git+https://github.com/markusressel/idotmatrix-api-client.git@fbdbd6a398164ef537cb75d1061471ed90c422ac
