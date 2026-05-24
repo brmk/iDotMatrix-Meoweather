@@ -86,14 +86,25 @@ current weather on its own on the configured interval.
 
 ---
 
-## Phase 4 — Polish (optional, post-MVP)
+## Phase 4 — Polish (in progress)
 
-Not required for "something cool on the wall". Pick from:
-- Graceful handling of sidecar / BLE disconnects with retry + backoff.
-- Multi-frame display (alternate weather icon and temperature).
-- Day/night or condition-based brightness.
-- Config file instead of constants; `.env` for coordinates.
-- Run the whole thing as a background service on login.
+**Completed**
+- **No-flash rendering** — replaced `upload_image_file` (clears screen on every
+  frame) with `graffiti.set_pixels()` diff: only pixels that changed since the
+  last frame are sent over BLE. Typical update at steady weather: 0 pixels sent.
+  First frame after connect: ~215 pixels (full scene vs. unknown screen state).
+- **Dev tooling** — `npm run dev` starts sidecar + TS together with a single
+  command; both processes hot-reload on file save (uvicorn `--reload` for Python,
+  `tsx watch` for TypeScript); TS no longer crashes if sidecar isn't ready yet.
+- **Clean dependency** — `idotmatrix` library now installed directly from GitHub
+  at a pinned commit inside the sidecar venv; no external checkout or hardcoded
+  absolute paths required.
+
+**Still open**
+- Graceful handling of BLE disconnects with retry + backoff.
+- Animations / multi-frame display.
+- `.env` for coordinates and other config.
+- Run as a background service on login.
 
 ---
 

@@ -54,10 +54,10 @@ filters by `startswith("IDM-")`, which matches our device correctly.
 ```bash
 cd sidecar
 
-# One-time setup (also installs the idotmatrix library from the Phase 0 clone)
+# One-time setup — the idotmatrix library is declared in requirements.txt
+# as a pinned git dependency; no separate checkout needed.
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/pip install -e /path/to/idotmatrix-api-client   # adjust path
 
 # Start the sidecar (default port 8765)
 .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765
@@ -115,7 +115,64 @@ and produced a valid 32×32 RGB PNG. Gate passed.
 
 ## Phase 3 — full loop
 
-> **TODO:** start order (sidecar first, then TS app) and the config values.
+```bash
+# Everything at once (recommended for dev)
+npm run dev
+```
+
+This runs both the Python sidecar and the TypeScript scheduler in one terminal
+with colour-prefixed output (`[sidecar]` / `[ts]`). Both processes hot-reload
+on file save. The TS app tolerates a slow sidecar start — BLE scanning takes
+~15 s on first connect.
+
+For production (two separate terminals or a process manager):
+
+```bash
+# Terminal 1
+npm run start:sidecar
+
+# Terminal 2
+npm start
+```
+
+Config lives in `src/config.ts`:
+
+| Key | Default | Description |
+|---|---|---|
+| `latitude` / `longitude` | 49.5535 / 25.5948 | Ternopil, Ukraine |
+| `intervalMs` | 600 000 (10 min) | How often to fetch + render + push |
+| `sidecarUrl` | `http://127.0.0.1:8765` | Local sidecar address |
+| `dayBrightness` | 80 % | Panel brightness when `isDay = true` |
+| `nightBrightness` | 25 % | Panel brightness at night |
+
+**What was verified (2026-05-24):** sidecar running, `npm start` launched, panel
+updated with live weather automatically on every interval tick. Gate passed.
+
+## Phase 4 — no-flash rendering + dev tooling
+
+**No-flash updates (graffiti diff):**
+
+The original `upload_image_file` path clears the display before each new frame,
+causing a visible black flash. Replaced with `graffiti.set_pixels()` + frame
+diff in `sidecar/main.py`:
+
+- The sidecar stores the last rendered frame.
+- On each `/display` call, only pixels that changed are sent via the graffiti
+  BLE command (in batches of ≤ 255 coordinates per colour).
+- At steady weather (same icon + temperature) → **0 BLE packets** sent, no
+  flash, no wear on the BLE connection.
+- On first connect the "previous frame" is treated as all-black, so all
+  non-black pixels are sent once.
+
+**`idotmatrix` dependency:**
+
+`sidecar/requirements.txt` installs the library from GitHub at a pinned commit:
+
+```
+idotmatrix @ git+https://github.com/markusressel/idotmatrix-api-client.git@fbdbd6a...
+```
+
+No external checkout, no absolute paths, works on any machine.
 
 ## Debugging guide
 
