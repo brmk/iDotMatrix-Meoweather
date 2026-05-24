@@ -109,9 +109,46 @@ current weather on its own on the configured interval.
   `npm run service:install`; tail logs with `npm run service:logs`.
 
 **Deferred to future work**
-- Animations / multi-frame display (no design yet).
+- ~~Animations / multi-frame display~~ — implemented in Phase 5.
 
 ---
+
+---
+
+## Phase 5 — Animations & pixel pet (complete 2026-05-24)
+
+- **Per-weather animations** — each of the 9 weather icon types now renders a
+  looping multi-frame animation instead of a static image. The main loop drives
+  a continuous `while(true)` cycle that advances frames and refreshes weather
+  every 10 minutes in the background.
+  - `clear-day` (8 frames): sun rays rotate clockwise as a sweeping cluster
+  - `clear-night` (6 frames): 4 stars twinkle independently
+  - `partly-cloudy` (8 frames): sun brightness pulses, cloud drifts ±1 px
+  - `cloudy` (8 frames): cloud sways ±1 px horizontally
+  - `fog` (8 frames): dashed fog lines scroll right
+  - `rain` (8 frames): 3 rain drops fall with staggered phases
+  - `heavy-rain` (8 frames): 6 drops, faster cycle
+  - `snow` (12 frames): 5 cross-shaped flakes fall with horizontal drift
+  - `thunder` (10 frames): dark cloud flashes bright on frames 6-7
+- **Pixel pet** — a 5-wide Bengal-coloured pixel cat overlaid on every frame.
+  Behaviours: walk (2-frame cycle, bounces at edges), sit (tail curled in sprite,
+  eye blink), lie (squishes down, tail wags), jump (4-frame arc), perch (arcs
+  up to temperature-text level, walks across it, arcs back down). Dims at night.
+  See ADR-0005 and ADR-0006 for sprite system and state-machine design.
+
+---
+
+## Phase 6 — Refactor, tests, browser simulator (planned)
+
+See `docs/PHASE6-PLAN.md` for the full plan. Key items:
+
+- **Refactor** `advancePet` into per-behavior handler functions (cognitive
+  complexity currently ~55; target ≤15 per function).
+- **Unit tests** — Vitest covering all state-machine transitions and the
+  specific regression cases from Phase 5 (perch oscillation bug, etc.).
+- **Browser simulator** (`dev/simulator.html`) — renders the 32×32 scene on a
+  scaled canvas with weather/pet controls; no panel or BLE required for visual
+  iteration.
 
 ## Phase dependency at a glance
 

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Кіт — кадри анімації</title>
+<style>
+  body { background: #111; color: #eee; font-family: monospace; padding: 24px; }
+  h1 { color: #ffa; margin-bottom: 8px; }
+  .legend { display:flex; gap:16px; margin-bottom:24px; align-items:center; flex-wrap:wrap; }
+  .chip { display:flex; align-items:center; gap:6px; font-size:13px; }
+  .swatch { width:16px; height:16px; border:1px solid #444; }
+  .section { margin-bottom:32px; }
+  h2 { color:#adf; font-size:14px; margin:0 0 6px; }
+  .frame { display:inline-block; margin-right:20px; vertical-align:top; }
+  .grid { border-collapse:collapse; margin-bottom:6px; }
+  .grid td { width:14px; height:14px; border:1px solid #222; }
+  .label { font-size:11px; color:#888; }
+  pre { margin:4px 0 0; font-size:13px; color:#cfc; background:#1a1a1a;
+        padding:6px 10px; border-radius:4px; line-height:1.6; }
+  .row { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+  hr { border-color:#333; margin:32px 0; }
+  .note { color:#fa8; font-size:12px; margin-top:4px; }
+</style>
+</head>
+<body>
+
+<h1>Кіт — всі кадри анімації</h1>
+
+<!-- ===== PALETTE ===== -->
+<div class="legend">
+  <b style="color:#aaa">Палітра:</b>
+  <div class="chip"><div class="swatch" style="background:#000"></div><code>.</code> = чорний (фон, прозорий)</div>
+  <div class="chip"><div class="swatch" style="background:#FF9B1E"></div><code>o</code> = рудий/оранжевий</div>
+  <div class="chip"><div class="swatch" style="background:#32DC50"></div><code>g</code> = зелені очі</div>
+  <div class="chip"><div class="swatch" style="background:#C36919"></div><code>s</code> = корична (тільки хвіст)</div>
+  <div class="chip"><div class="swatch" style="background:#FFCD82"></div><code>l</code> = кремовий животик</div>
+  <div class="chip"><div class="swatch" style="background:#B84A0A"></div><code>r</code> = рудо-темна смуга на тілі</div>
+</div>
+<p class="note">Спрайт: 5 пікс. шириною. <code>.</code> — прозорий (не малюється). Хвіст — 1 піксель, малюється окремо зліва/справа від спрайту.</p>
+
+<hr>
+
+<!-- ===== WALK ===== -->
+<div class="section">
+  <h2>🚶 ХОДЬБА (2 кадри, цикл A→B→A→...)</h2>
+  <div class="row">
+
+    <div class="frame">
+      <div class="label">WALK_A — кроки нарізно</div>
+      <table class="grid" id="g-walk-a"></table>
+      <pre id="t-walk-a">..o.o
+s.gog
+.oroo
+.o.o.</pre>
+    </div>
+
+    <div class="frame">
+      <div class="label">WALK_B — кроки разом</div>
+      <table class="grid" id="g-walk-b"></table>
+      <pre id="t-walk-b">..o.o
+s.gog
+.oroo
+..oo.</pre>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== SIT ===== -->
+<div class="section">
+  <h2>🪑 СИДИТЬ (2 кадри, чергуються)</h2>
+  <div class="row">
+
+    <div class="frame">
+      <div class="label">SIT_A — лапки розведені</div>
+      <table class="grid" id="g-sit-a"></table>
+      <pre id="t-sit-a">..o.o
+..gog
+.sroo
+.sso.</pre>
+    </div>
+
+    <div class="frame">
+      <div class="label">SIT_B — лапки разом</div>
+      <table class="grid" id="g-sit-b"></table>
+      <pre id="t-sit-b">..o.o
+..ooo
+.sroo
+.sso.</pre>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== LIE ===== -->
+<div class="section">
+  <h2>😴 ЛЕЖИТЬ (2 кадри, чергуються; спрайт зміщений на 1px вниз)</h2>
+  <div class="row">
+
+    <div class="frame">
+      <div class="label">LIE_A — очі відкриті</div>
+      <table class="grid" id="g-lie-a"></table>
+      <pre id="t-lie-a">..o.o
+..gog
+soroo</pre>
+    </div>
+
+    <div class="frame">
+      <div class="label">LIE_B — очі закриті (g→o)</div>
+      <table class="grid" id="g-lie-b"></table>
+      <pre id="t-lie-b">..o.o
+s.ooo
+.oroo</pre>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== JUMP ===== -->
+<div class="section">
+  <h2>🐱 СТРИБОК (4 кадри послідовно)</h2>
+  <div class="row">
+
+    <div class="frame">
+      <div class="label">JUMP_1 — присів (+1px вниз)</div>
+      <table class="grid" id="g-jump-1"></table>
+      <pre id="t-jump-1">..o.o
+s.gog
+.oroo
+.o.o.</pre>
+    </div>
+
+    <div class="frame">
+      <div class="label">JUMP_2 — відштовхнувся</div>
+      <table class="grid" id="g-jump-2"></table>
+      <pre id="t-jump-2">..o.o
+s.gog
+.oroo
+.....</pre>
+    </div>
+
+    <div class="frame">
+      <div class="label">JUMP_3 — пік (-1px вгору)</div>
+      <table class="grid" id="g-jump-3"></table>
+      <pre id="t-jump-3">..o.o
+s.gog
+.oroo
+.....</pre>
+    </div>
+
+    <div class="frame">
+      <div class="label">JUMP_4 — приземлився</div>
+      <table class="grid" id="g-jump-4"></table>
+      <pre id="t-jump-4">..o.o
+s.gog
+.oroo
+.o.o.</pre>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const COLORS = {
+  '.': '#000',
+  'o': '#FF9B1E',
+  'g': '#32DC50',
+  's': '#C36919',
+  'l': '#FFCD82',
+  'r': '#B84A0A',
+};
+
+function renderGrid(tableId, textId) {
+  const pre = document.getElementById(textId);
+  const table = document.getElementById(tableId);
+  const rows = pre.textContent.trim().split('\n');
+  table.innerHTML = '';
+  for (const row of rows) {
+    const tr = document.createElement('tr');
+    for (const ch of row) {
+      const td = document.createElement('td');
+      td.style.background = COLORS[ch] ?? '#333';
+      td.title = ch;
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+}
+
+const frames = [
+  ['g-walk-a','t-walk-a'], ['g-walk-b','t-walk-b'], ['g-walk-c','t-walk-c'],
+  ['g-sit-a', 't-sit-a'],  ['g-sit-b', 't-sit-b'],
+  ['g-lie-a', 't-lie-a'],  ['g-lie-b', 't-lie-b'],
+  ['g-jump-1','t-jump-1'], ['g-jump-2','t-jump-2'],
+  ['g-jump-3','t-jump-3'], ['g-jump-4','t-jump-4'],
+];
+
+for (const [gid, tid] of frames) renderGrid(gid, tid);
+</script>
+</body>
+</html>

@@ -217,6 +217,59 @@ idotmatrix @ git+https://github.com/markusressel/idotmatrix-api-client.git@fbdbd
 
 No external checkout, no absolute paths, works on any machine.
 
+## Phase 5 — animations and pixel pet
+
+### Weather animations
+
+Each of the 9 icon types (`clear-day`, `clear-night`, `partly-cloudy`,
+`cloudy`, `fog`, `rain`, `heavy-rain`, `snow`, `thunder`) renders a looping
+multi-frame animation. All frames are pre-rendered by `renderAnimation()` and
+stored as `AnimationFrame[]` (pixel buffer + delay). The main loop advances
+`frameIdx` and applies the pet overlay on a copy of each buffer.
+
+To add or tweak an animation: edit the corresponding `drawAnimated*` function
+in `src/render/index.ts` and update the frame count in the `ANIM` table.
+
+### Pixel pet sprites
+
+`dev/frames.html` is the visual sprite editor — open it in a browser to see
+all animation frames rendered as pixel grids. The `<pre>` text blocks are the
+source of truth for design; the same ASCII grids are transcribed into
+`src/render/index.ts`.
+
+**Palette:**
+| Char | Color | Hex | Used for |
+|---|---|---|---|
+| `.` | transparent | — | background (not drawn) |
+| `o` | orange | `#FF9B1E` | body, ears |
+| `g` | green | `#32DC50` | eyes (open) |
+| `s` | brown | `#C36919` | tail only |
+| `r` | rust | `#B84A0A` | body stripe |
+| `l` | cream | `#FFCD82` | belly |
+
+**Sprite layout (5 × 3–4 rows, baseline `PET_Y_WALK = 28`):**
+- Walk/Jump: 4 rows, fits in y=28–31
+- Lie: 3 rows, drawn at y=29–31 (baseY+1)
+- Column `dx=0` is always transparent — the waving tail pixel lives there
+
+**To change a sprite:**
+1. Edit `dev/frames.html` and preview in a browser.
+2. Copy the ASCII grid into the matching `parseSpr([...])` call in `src/render/index.ts`.
+3. `tsx watch` hot-reloads automatically.
+
+### Pet behavior state machine
+
+Defined in `src/main.ts` (`advancePet`). The cat walks until `petWalkBudget`
+hits zero, then rolls:
+
+- 30 % → sit (30–80 frames)
+- 20 % → lie (50–120 frames)
+- 15 % → jump (8 frames)
+- 35 % → keep walking
+
+To tune the frequency or duration: adjust the roll thresholds or `rnd()` ranges
+in `advancePet`.
+
 ## Debugging guide
 
 - **Panel does nothing, no error:** almost always the macOS Bluetooth

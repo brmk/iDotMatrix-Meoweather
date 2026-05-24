@@ -57,7 +57,11 @@ idotmatrix-weather/
 │       ├── 0001-language-split-ts-python-sidecar.md
 │       ├── 0002-http-boundary-png-contract.md
 │       ├── 0003-weather-data-source.md
-│       └── 0004-rendering-approach-32x32.md
+│       ├── 0004-rendering-approach-32x32.md
+│       ├── 0005-pixel-pet-sprite-system.md
+│       └── 0006-perch-behavior-and-state-machine-lessons.md
+├── dev/
+│   └── frames.html                # visual sprite editor (open in browser)
 ├── sidecar/                       # Python BLE sidecar (Phase 1)
 └── src/                           # TypeScript app (Phase 2+)
 ```
@@ -94,7 +98,24 @@ idotmatrix-weather/
    Bluetooth library. If you feel the urge, stop and re-read ADR-0001.
 6. **Test rendering against PNG files on disk**, not against the panel. Debug
    the picture and the Bluetooth path separately, never together.
+7. **Sprite changes go through `dev/frames.html` first.** Edit the ASCII grids
+   there, preview in a browser, then transcribe approved frames into
+   `src/render/index.ts`. See ADR-0005 for the full sprite system design.
 
 ## Status
 
-Phase: **4 complete (2026-05-24)**. See `docs/ROADMAP.md` for details.
+Phase: **5 complete (2026-05-24)**. Phase 6 planned — see `docs/PHASE6-PLAN.md`.
+
+## Known pixel-animation pitfalls (read before touching the pet)
+
+- **Sub-phase gating:** when multiple sub-phases share a position variable
+  (e.g. `perchY`), the conditions must be gated by a secondary discriminator
+  (e.g. `petBehaviorDur > 0`). Relying on the position alone causes infinite
+  oscillation. See ADR-0006.
+- **Animation rate on 32×32:** sprite alternation faster than every 2 frames
+  (~150 ms each) looks like oscillation, not movement. Slow down with
+  `if (counter % 2 === 0) advance frame`.
+- **Tail at non-floor baselines:** `TAIL_Y` offsets are relative to `baseY`.
+  When `baseY` is high on screen (e.g. `PET_Y_PERCH = 17`), the tail lands on
+  the cat's own body rows and oscillates visibly. Suppress tail during perch
+  (and sit, where the tail is drawn in the sprite instead).
