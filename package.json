@@ -6,10 +6,7 @@
     "start": "tsx src/main.ts",
     "start:sidecar": "cd sidecar && .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765",
     "dev": "concurrently --names sidecar,ts --prefix-colors cyan,yellow \"cd sidecar && .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765 --reload\" \"tsx watch src/main.ts\"",
-    "build": "tsc --noEmit",
-    "service:install": "mkdir -p logs && ln -sf \"$(pwd)/scripts/com.idotmatrix.weather.plist\" ~/Library/LaunchAgents/com.idotmatrix.weather.plist && launchctl load ~/Library/LaunchAgents/com.idotmatrix.weather.plist && echo 'Service installed and started.'",
-    "service:uninstall": "launchctl unload ~/Library/LaunchAgents/com.idotmatrix.weather.plist && rm -f ~/Library/LaunchAgents/com.idotmatrix.weather.plist && echo 'Service removed.'",
-    "service:logs": "tail -f logs/out.log logs/err.log"
+    "build": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20.19.41",
