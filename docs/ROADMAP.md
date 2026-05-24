@@ -86,9 +86,8 @@ current weather on its own on the configured interval.
 
 ---
 
-## Phase 4 — Polish (in progress)
+## Phase 4 — Polish (complete 2026-05-24)
 
-**Completed**
 - **No-flash rendering** — replaced `upload_image_file` (clears screen on every
   frame) with `graffiti.set_pixels()` diff: only pixels that changed since the
   last frame are sent over BLE. Typical update at steady weather: 0 pixels sent.
@@ -99,12 +98,18 @@ current weather on its own on the configured interval.
 - **Clean dependency** — `idotmatrix` library now installed directly from GitHub
   at a pinned commit inside the sidecar venv; no external checkout or hardcoded
   absolute paths required.
+- **BLE retry + backoff** — `_ensure_connected()` retries up to 4 times with
+  delays of 2 s, 5 s, 15 s. On write failure the client handle is reset so the
+  next `/display` request triggers a fresh reconnect automatically.
+- **`.env` config** — coordinates, interval, sidecar URL, and brightness values
+  are now read from a `.env` file via `process.loadEnvFile()`. Copy
+  `.env.example` and edit as needed; the file is gitignored.
+- **Background service** — `scripts/start.sh` + `scripts/com.idotmatrix.weather.plist`
+  run both processes as a macOS Login Item via launchd. Install with
+  `npm run service:install`; tail logs with `npm run service:logs`.
 
-**Still open**
-- Graceful handling of BLE disconnects with retry + backoff.
-- Animations / multi-frame display.
-- `.env` for coordinates and other config.
-- Run as a background service on login.
+**Deferred to future work**
+- Animations / multi-frame display (no design yet).
 
 ---
 

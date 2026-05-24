@@ -135,22 +135,29 @@ npm run start:sidecar
 npm start
 ```
 
-Config lives in `src/config.ts`:
+Config is read from a `.env` file in the project root (gitignored). Copy the
+example and edit:
 
-| Key | Default | Description |
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Description |
 |---|---|---|
-| `latitude` / `longitude` | 49.5535 / 25.5948 | Ternopil, Ukraine |
-| `intervalMs` | 600 000 (10 min) | How often to fetch + render + push |
-| `sidecarUrl` | `http://127.0.0.1:8765` | Local sidecar address |
-| `dayBrightness` | 80 % | Panel brightness when `isDay = true` |
-| `nightBrightness` | 25 % | Panel brightness at night |
+| `LATITUDE` / `LONGITUDE` | 49.5535 / 25.5948 | Your coordinates |
+| `INTERVAL_SECONDS` | 600 | How often to fetch + render + push |
+| `SIDECAR_URL` | `http://127.0.0.1:8765` | Local sidecar address |
+| `DAY_BRIGHTNESS` | 80 | Panel brightness when `isDay = true` (0–100) |
+| `NIGHT_BRIGHTNESS` | 25 | Panel brightness at night (0–100) |
+
+All values have hard-coded fallbacks so `.env` is optional.
 
 **What was verified (2026-05-24):** sidecar running, `npm start` launched, panel
 updated with live weather automatically on every interval tick. Gate passed.
 
-## Phase 4 — no-flash rendering + dev tooling
+## Phase 4 — polish
 
-**No-flash updates (graffiti diff):**
+### No-flash updates (graffiti diff)
 
 The original `upload_image_file` path clears the display before each new frame,
 causing a visible black flash. Replaced with `graffiti.set_pixels()` + frame
@@ -164,7 +171,43 @@ diff in `sidecar/main.py`:
 - On first connect the "previous frame" is treated as all-black, so all
   non-black pixels are sent once.
 
-**`idotmatrix` dependency:**
+### BLE retry + backoff
+
+`_ensure_connected()` retries up to 4 times with delays of 2 s → 5 s → 15 s
+before giving up. If a BLE write fails mid-operation the client handle is reset
+so the next request triggers a fresh reconnect automatically. The sidecar never
+needs a manual restart after a transient BLE drop.
+
+### `.env` config
+
+```bash
+cp .env.example .env   # once; edit your coordinates if needed
+```
+
+See the Config table in the Phase 3 section above for all variables.
+
+### Run as a background service (Login Item)
+
+```bash
+# Install (symlinks plist into ~/Library/LaunchAgents and loads it)
+npm run service:install
+
+# Watch live output
+npm run service:logs
+
+# Remove the service
+npm run service:uninstall
+```
+
+The plist lives at `scripts/com.idotmatrix.weather.plist`. launchd keeps the
+service alive and restarts it (with a 30 s throttle) if it crashes. Logs go to
+`logs/out.log` and `logs/err.log`.
+
+**Note:** the terminal/process running the service still needs the macOS
+Bluetooth permission (System Settings → Privacy & Security → Bluetooth). Grant
+it to `/bin/bash` or to the terminal you used to run `npm run service:install`.
+
+### `idotmatrix` dependency
 
 `sidecar/requirements.txt` installs the library from GitHub at a pinned commit:
 

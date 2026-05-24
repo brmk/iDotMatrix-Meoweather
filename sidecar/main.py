@@ -40,6 +40,9 @@ SCAN_TIMEOUT = float(os.environ.get("SCAN_TIMEOUT", "15"))
 EXPECTED_SIZE = 32
 GRAFFITI_CHUNK = 255  # max pixels per set_pixels call
 
+# Exponential backoff delays (seconds) between reconnect attempts.
+RECONNECT_DELAYS = (2.0, 5.0, 15.0)
+
 _client: Optional[IDotMatrixClient] = None
 _device_address: Optional[str] = None
 _device_name: Optional[str] = None
@@ -72,24 +75,53 @@ async def _discover_device() -> tuple[str, str]:
 
 
 async def _ensure_connected() -> IDotMatrixClient:
+    """Connect (or reconnect) with exponential backoff. Thread-safe via _connect_lock."""
     global _client, _device_address, _device_name, _prev_frame
 
     async with _connect_lock:
         if _client is not None and _client._connection_manager.is_connected():
             return _client
 
-        if _device_address is None:
-            _device_address, _device_name = await _discover_device()
+        _client = None  # discard stale handle before retrying
+        delays = (*RECONNECT_DELAYS, None)  # None sentinel = last attempt, no sleep after
+        last_exc: Exception = RuntimeError("unknown")
 
-        logger.info(f"Connecting to {_device_name} ({_device_address})...")
-        _client = IDotMatrixClient(
-            screen_size=ScreenSize.SIZE_32x32,
-            mac_address=_device_address,
-        )
-        await _client.connect()
-        _prev_frame = None  # unknown screen state after (re)connect
-        logger.info("Connected.")
-        return _client
+        for attempt, delay in enumerate(delays, start=1):
+            try:
+                if _device_address is None:
+                    _device_address, _device_name = await _discover_device()
+
+                logger.info(
+                    f"Connecting to {_device_name!r} ({_device_address}) "
+                    f"[attempt {attempt}/{len(delays)}]..."
+                )
+                candidate = IDotMatrixClient(
+                    screen_size=ScreenSize.SIZE_32x32,
+                    mac_address=_device_address,
+                )
+                await candidate.connect()
+                _client = candidate
+                _prev_frame = None  # screen state unknown after (re)connect
+                logger.info("Connected.")
+                return _client
+
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(f"Connection attempt {attempt} failed: {exc}")
+                if delay is not None:
+                    logger.info(f"Retrying in {delay:.0f}s...")
+                    await asyncio.sleep(delay)
+
+        raise RuntimeError(
+            f"Could not connect after {len(delays)} attempts"
+        ) from last_exc
+
+
+def _reset_client() -> None:
+    """Mark the client as dead so the next call to _ensure_connected reconnects."""
+    global _client, _prev_frame
+    _client = None
+    _prev_frame = None
 
 
 async def _push_frame_diff(
@@ -177,7 +209,8 @@ async def display(file: UploadFile, brightness: int = Form(default=80)):
         changed = await _push_frame_diff(client, new_pixels)
         logger.info(f"Updated {changed} pixels")
     except Exception as exc:
-        logger.exception("Failed to push frame")
+        _reset_client()  # force reconnect on next request
+        logging.exception("Failed to push frame — client reset, will reconnect next request")
         raise HTTPException(status_code=502, detail=f"Panel error: {exc}")
 
     return {"ok": True, "changed_pixels": changed}

@@ -25,3 +25,6 @@ build/
 /tmp/
 out.png
 test_*.png
+
+# Service logs
+logs/*.log
