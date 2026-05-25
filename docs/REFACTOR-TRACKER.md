@@ -181,17 +181,17 @@ src/render/
 
 ## Phase 3 — Icons modularization
 
-**Status:** planned  
+**Status:** done  
 **Goal:** split weather icon rendering into composable, extensible modules.
 
 ### Tasks
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| 3.1 | planned | Extract icon types/metadata into dedicated modules | Icon contracts no longer live in a mixed implementation file |
-| 3.2 | planned | Move color palette and layout constants into icon-specific modules | Magic icon values are named and centralized |
-| 3.3 | planned | Split primitives from effects and registry wiring | Geometry helpers, animation effects, and registration are separate concerns |
-| 3.4 | planned | Isolate weather-code mapping from icon drawing | `codeToIcon` logic lives in its own module with tests |
+| 3.1 | done | Extract icon types/metadata into dedicated modules | Icon contracts no longer live in a mixed implementation file |
+| 3.2 | done | Move color palette and layout constants into icon-specific modules | Magic icon values are named and centralized |
+| 3.3 | done | Split primitives from effects and registry wiring | Geometry helpers, animation effects, and registration are separate concerns |
+| 3.4 | done | Isolate weather-code mapping from icon drawing | `codeToIcon` logic lives in its own module with tests |
 
 ### Exit criteria
 
@@ -202,16 +202,16 @@ src/render/
 
 ## Phase 4 — Text rendering cleanup
 
-**Status:** planned  
+**Status:** done  
 **Goal:** make text layout reusable and deterministic.
 
 ### Tasks
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| 4.1 | planned | Split glyph data from draw logic | Glyph data is stored separately from rendering functions |
-| 4.2 | planned | Add `measureText()` and explicit layout helpers | Width calculation is reusable and testable |
-| 4.3 | planned | Add `drawTextAt()` and `drawCenteredText()` | Alignment is explicit rather than baked into one public function |
+| 4.1 | done | Split glyph data from draw logic | Glyph data is stored separately from rendering functions |
+| 4.2 | done | Add `measureText()` and explicit layout helpers | Width calculation is reusable and testable |
+| 4.3 | done | Add `drawTextAt()` and `drawCenteredText()` | Alignment is explicit rather than baked into one public function |
 
 ### Exit criteria
 
@@ -250,8 +250,8 @@ src/render/
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
 | 6.1 | done | Add low-level tests for `canvas.ts` | Bounds and primitive drawing behavior are covered |
-| 6.2 | in_progress | Add focused tests for text rendering helpers | Glyph, measurement, and alignment logic are covered |
-| 6.3 | planned | Add table-driven tests for weather-code mapping and icon registry integrity | Mapping and registry drift become hard to miss |
+| 6.2 | done | Add focused tests for text rendering helpers | Glyph, measurement, and alignment logic are covered |
+| 6.3 | done | Add table-driven tests for weather-code mapping and icon registry integrity | Mapping and registry drift become hard to miss |
 | 6.4 | done | Add scene tests for frame rendering and tint behavior | Static vs animated render composition is protected |
 | 6.5 | planned | Extend pet tests beyond state advancement where useful | Sprite parsing and draw invariants are covered |
 | 6.6 | planned | Add visual regression or golden-style render tests for representative scenes | Key render outputs are protected against silent drift |
@@ -331,6 +331,13 @@ If one of these is skipped, the session log should say why.
 - Scene composition now flows through dedicated `scene/format`, `scene/frame`,
   and `scene/tint` modules, with `src/render/scene.ts` retained as a
   compatibility re-export during the refactor program.
+- Icon rendering now lives under `src/render/icons/` with dedicated modules for
+  contracts, palette/layout constants, drawing primitives, animated effects,
+  registry wiring, and weather-code mapping; `src/render/icons.ts` remains a
+  compatibility barrel during the refactor program.
+- Text rendering now lives under `src/render/text/` with separate glyph data,
+  width measurement, and draw helpers; `src/render/font.ts` remains a
+  compatibility barrel during the refactor program.
 
 ---
 
@@ -341,6 +348,8 @@ If one of these is skipped, the session log should say why.
 | 2026-05-25 | Codex | Created this temporary tracker for the next refactor/test-improvement cycle. No code changes yet; all phases start as `planned`. |
 | 2026-05-25 | Codex | Completed Phase 1 by introducing shared render types/constants, normalizing low-level canvas color APIs, and removing duplicated canvas-size literals from render/text paths. Added baseline `canvas` and `font` tests; verification passed via `npm run format`, `npm run lint`, `npm run typecheck`, and `npm test`. |
 | 2026-05-25 | Codex | Completed Phase 2 by extracting scene formatting/tint/frame helpers into focused modules and moving static plus animated rendering onto one shared `renderFrame()` composition path. Added scene tests for temperature formatting, shared composition, animation metadata, and night tint behavior; verification passed via `npm run format`, `npm run lint`, `npm run typecheck`, and `npm test`. |
+| 2026-05-25 | Codex | Completed Phase 3 by splitting the monolithic icon renderer into focused `src/render/icons/` modules and isolating weather-code mapping from drawing logic. Added table-driven tests for `codeToIcon()` plus registry/animation metadata integrity; initial verification passed with `npm run typecheck` and `npm test`, followed by the standard full hygiene pass. |
+| 2026-05-25 | Codex | Completed Phase 4 by splitting text rendering into dedicated `src/render/text/` modules, adding `measureText()`, `drawTextAt()`, and `drawCenteredText()`, and updating scene composition to use the explicit centered-text helper. Expanded text tests to cover measurement, explicit positioning, centered layout, and unsupported glyph spacing; initial verification passed with `npm run typecheck` and `npm test`, followed by the standard full hygiene pass. |
 
 ---
 

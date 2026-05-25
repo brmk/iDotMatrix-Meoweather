@@ -1,7 +1,7 @@
 import type { WeatherSnapshot } from '../../weather/index.js';
 import { mkBuf } from '../canvas.js';
 import { WHITE } from '../colors.js';
-import { drawText } from '../font.js';
+import { drawCenteredText } from '../font.js';
 import { ANIM, codeToIcon, drawAnimatedIcon, type IconType } from '../icons.js';
 import type { AnimationFrame } from '../types.js';
 import { formatTemperature } from './format.js';
@@ -26,7 +26,7 @@ export function describeScene(snapshot: WeatherSnapshot): SceneDescriptor {
 export function renderFrame(scene: SceneDescriptor, frame: number): Uint8Array {
   const buf = mkBuf();
   drawAnimatedIcon(buf, scene.icon, frame);
-  drawText(buf, scene.temperatureText, TEMPERATURE_Y, WHITE);
+  drawCenteredText(buf, scene.temperatureText, TEMPERATURE_Y, WHITE);
   if (!scene.isDay) applyNightTint(buf);
   return buf;
 }
