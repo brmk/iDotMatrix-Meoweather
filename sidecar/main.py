@@ -131,12 +131,15 @@ async def _push_frame_diff(
     """Send only changed pixels via graffiti. Returns number of pixels sent."""
     global _prev_frame
 
-    prev = _prev_frame or [(0, 0, 0)] * (EXPECTED_SIZE * EXPECTED_SIZE)
+    # When _prev_frame is None the panel state is unknown — send every pixel
+    # unconditionally so stale content (e.g. red from a crashed session) is cleared.
+    full_refresh = _prev_frame is None
+    prev = _prev_frame if _prev_frame is not None else [(-1, -1, -1)] * (EXPECTED_SIZE * EXPECTED_SIZE)
 
     # Group changed pixels by new color
     by_color: dict[tuple[int, int, int], list[tuple[int, int]]] = defaultdict(list)
     for idx, (new_color, old_color) in enumerate(zip(new_pixels, prev)):
-        if new_color != old_color:
+        if full_refresh or new_color != old_color:
             x = idx % EXPECTED_SIZE
             y = idx // EXPECTED_SIZE
             by_color[new_color].append((x, y))
