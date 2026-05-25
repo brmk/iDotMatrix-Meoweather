@@ -1,9 +1,9 @@
-import { deflateSync } from "node:zlib";
-import { writeFileSync } from "node:fs";
-import type { WeatherSnapshot } from "../weather/index.js";
-import { render } from "./core.js";
+import { writeFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
+import type { WeatherSnapshot } from '../weather/index.js';
+import { render } from './core.js';
 
-export * from "./core.js";
+export * from './core.js';
 
 // ---- PNG writer (Node built-ins only) ----
 
@@ -11,7 +11,7 @@ function crc32(data: Buffer): number {
   const tbl = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
     let c = i;
-    for (let j = 0; j < 8; j++) c = c & 1 ? (0xedb88320 ^ (c >>> 1)) : c >>> 1;
+    for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
     tbl[i] = c;
   }
   let crc = 0xffffffff;
@@ -20,7 +20,7 @@ function crc32(data: Buffer): number {
 }
 
 function pngChunk(type: string, data: Buffer): Buffer {
-  const typeBytes = Buffer.from(type, "ascii");
+  const typeBytes = Buffer.from(type, 'ascii');
   const lenBuf = Buffer.alloc(4);
   lenBuf.writeUInt32BE(data.length);
   const crcBuf = Buffer.alloc(4);
@@ -52,9 +52,9 @@ function rgbToPng(rgb: Uint8Array): Buffer {
 
   return Buffer.concat([
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    pngChunk("IHDR", ihdr),
-    pngChunk("IDAT", deflateSync(raw)),
-    pngChunk("IEND", Buffer.alloc(0)),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0)),
   ]);
 }
 

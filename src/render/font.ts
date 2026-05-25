@@ -13,7 +13,7 @@ const FONT: Record<string, number[]> = {
   '9': [0b111, 0b101, 0b111, 0b001, 0b111],
   '-': [0b000, 0b000, 0b111, 0b000, 0b000],
   '°': [0b110, 0b110, 0b000, 0b000, 0b000],
-  C:   [0b111, 0b100, 0b100, 0b100, 0b111],
+  C: [0b111, 0b100, 0b100, 0b100, 0b111],
 };
 
 function drawChar(buf: Uint8Array, ch: string, x: number, y: number, r: number, g: number, b: number): void {

@@ -1,12 +1,8 @@
-import { fetchWeather } from "./weather/index.js";
-import {
-  renderAnimation, drawPet, pixelsToPng,
-  PET_Y_WALK,
-  type AnimationFrame, type PetState,
-} from "./render/index.js";
-import { advancePet, makePetContext, type PetContext } from "./pet/index.js";
-import { sendToPanel } from "./transport/index.js";
-import { config } from "./config.js";
+import { config } from './config.js';
+import { advancePet, makePetContext, type PetContext } from './pet/index.js';
+import { drawPet, PET_Y_WALK, pixelsToPng, renderAnimation, type AnimationFrame, type PetState } from './render/index.js';
+import { sendToPanel } from './transport/index.js';
+import { fetchWeather } from './weather/index.js';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -17,7 +13,7 @@ const WEATHER_REFRESH_MS = 10 * 60 * 1000;
 const pet: PetState = {
   x: 0,
   facingRight: true,
-  behavior: "walk",
+  behavior: 'walk',
   walkFrame: 0,
   behaviorFrame: 0,
   tailPhase: 0,
@@ -39,7 +35,7 @@ async function run(): Promise<void> {
   let lastFetch = Date.now();
 
   console.log(
-    `[${new Date().toISOString()}] weather code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay} — ${frames.length} animation frames`
+    `[${new Date().toISOString()}] weather code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay} — ${frames.length} animation frames`,
   );
 
   while (true) {
@@ -49,11 +45,9 @@ async function run(): Promise<void> {
         frames = renderAnimation(snapshot);
         frameIdx = 0;
         lastFetch = Date.now();
-        console.log(
-          `[${new Date().toISOString()}] weather refreshed: code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay}`
-        );
+        console.log(`[${new Date().toISOString()}] weather refreshed: code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay}`);
       } catch (err) {
-        console.error("weather fetch failed, keeping previous data:", err);
+        console.error('weather fetch failed, keeping previous data:', err);
       }
     }
 
@@ -69,7 +63,7 @@ async function run(): Promise<void> {
     try {
       await sendToPanel(pixelsToPng(pixels), brightness);
     } catch (err) {
-      console.error("sendToPanel failed:", err);
+      console.error('sendToPanel failed:', err);
     }
 
     await sleep(frame.delayMs);
@@ -80,6 +74,6 @@ async function run(): Promise<void> {
 try {
   await run();
 } catch (err) {
-  console.error("Fatal:", err);
+  console.error('Fatal:', err);
   process.exit(1);
 }

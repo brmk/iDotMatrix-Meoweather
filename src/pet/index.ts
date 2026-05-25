@@ -1,5 +1,5 @@
-import { PET_Y_WALK, PET_Y_PERCH, PET_WIDTH } from '../render/pet-draw.js';
-import type { PetState, PetBehavior } from '../render/pet-draw.js';
+import type { PetBehavior, PetState } from '../render/pet-draw.js';
+import { PET_WIDTH, PET_Y_PERCH, PET_Y_WALK } from '../render/pet-draw.js';
 import { PET_BEHAVIOR_CONFIG, type BehaviorPeriodConfig } from './config.js';
 
 export type { PetBehavior, PetState };
@@ -57,12 +57,18 @@ export function advanceWalk(state: PetState, ctx: PetContext, rand = Math.random
 
   if (!state.isDay) {
     if (state.x < 25) state.facingRight = true;
-    else               state.facingRight = false;
+    else state.facingRight = false;
   }
 
   state.x += state.facingRight ? 1 : -1;
-  if (state.x >= 32 - PET_WIDTH) { state.x = 32 - PET_WIDTH; state.facingRight = false; }
-  if (state.x <= 0)               { state.x = 0;               state.facingRight = true;  }
+  if (state.x >= 32 - PET_WIDTH) {
+    state.x = 32 - PET_WIDTH;
+    state.facingRight = false;
+  }
+  if (state.x <= 0) {
+    state.x = 0;
+    state.facingRight = true;
+  }
 
   state.walkFrame = (state.walkFrame + 1) % 2;
   ctx.walkBudget--;
@@ -83,8 +89,14 @@ export function advancePerch(state: PetState, ctx: PetContext, rand = Math.rando
     // walk on text: 1px/frame, legs animate every 2 steps
     ctx.stepCounter = 0;
     state.x += state.facingRight ? 1 : -1;
-    if (state.x > 22) { state.x = 22; state.facingRight = false; }
-    if (state.x < 4)  { state.x = 4;  state.facingRight = true;  }
+    if (state.x > 22) {
+      state.x = 22;
+      state.facingRight = false;
+    }
+    if (state.x < 4) {
+      state.x = 4;
+      state.facingRight = true;
+    }
     if (ctx.behaviorDur % 2 === 0) state.walkFrame = (state.walkFrame + 1) % 2;
     ctx.behaviorDur--;
   } else {
@@ -116,7 +128,7 @@ export function advanceTimed(state: PetState, ctx: PetContext): PetState {
 type BehaviorAdvancer = (state: PetState, ctx: PetContext, rand: () => number) => PetState;
 
 const BEHAVIOR_ADVANCERS: Partial<Record<PetBehavior, BehaviorAdvancer>> = {
-  walk:  advanceWalk,
+  walk: advanceWalk,
   perch: advancePerch,
 };
 

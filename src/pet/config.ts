@@ -34,9 +34,9 @@ export const PET_BEHAVIOR_CONFIG: PetBehaviorConfig = {
     walkBudgetMax: 40,
     transitions: {
       sit: { chance: 0.15, minDuration: 30, maxDuration: 80 },
-      lie: { chance: 0.10, minDuration: 50, maxDuration: 120 },
-      jump: { chance: 0.10, minDuration: 8, maxDuration: 8 },
-      perch: { chance: 0.50, minDuration: 8, maxDuration: 16 },
+      lie: { chance: 0.1, minDuration: 50, maxDuration: 120 },
+      jump: { chance: 0.1, minDuration: 8, maxDuration: 8 },
+      perch: { chance: 0.5, minDuration: 8, maxDuration: 16 },
       dream: { chance: 0, minDuration: 120, maxDuration: 120 },
     },
   },
@@ -45,7 +45,7 @@ export const PET_BEHAVIOR_CONFIG: PetBehaviorConfig = {
     walkBudgetMax: 10,
     transitions: {
       sit: { chance: 0.15, minDuration: 20, maxDuration: 50 },
-      lie: { chance: 0.20, minDuration: 50, maxDuration: 100 },
+      lie: { chance: 0.2, minDuration: 50, maxDuration: 100 },
       jump: { chance: 0, minDuration: 8, maxDuration: 8 },
       perch: { chance: 0, minDuration: 8, maxDuration: 16 },
       dream: { chance: 0.55, minDuration: 80, maxDuration: 160 },

@@ -1,4 +1,4 @@
-import { config } from "../config.js";
+import { config } from '../config.js';
 
 export interface WeatherSnapshot {
   temperature: number; // Celsius, integer rounded
@@ -16,11 +16,11 @@ export async function fetchWeather(): Promise<WeatherSnapshot> {
     return cached;
   }
 
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", String(config.latitude));
-  url.searchParams.set("longitude", String(config.longitude));
-  url.searchParams.set("current", "temperature_2m,weather_code,is_day");
-  url.searchParams.set("temperature_unit", "celsius");
+  const url = new URL('https://api.open-meteo.com/v1/forecast');
+  url.searchParams.set('latitude', String(config.latitude));
+  url.searchParams.set('longitude', String(config.longitude));
+  url.searchParams.set('current', 'temperature_2m,weather_code,is_day');
+  url.searchParams.set('temperature_unit', 'celsius');
 
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`Open-Meteo fetch failed: HTTP ${res.status}`);

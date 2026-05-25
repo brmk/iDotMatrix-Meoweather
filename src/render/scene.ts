@@ -1,7 +1,7 @@
 import type { WeatherSnapshot } from '../weather/index.js';
 import { mkBuf } from './canvas.js';
 import { drawText } from './font.js';
-import { codeToIcon, drawAnimatedIcon, ANIM } from './icons.js';
+import { ANIM, codeToIcon, drawAnimatedIcon } from './icons.js';
 
 export interface AnimationFrame {
   pixels: Uint8Array;
