@@ -34,7 +34,7 @@ Runtime constraints and known failure modes: [[docs/SPEC]].
 ```
 CLAUDE.md          — you are here
 docs/              — specs, runbook, ADRs, history
-dev/               — browser tools (frames.html sprite editor, simulator)
+dev/               — Vite + React dev app (Simulator + Studio sprite editor)
 sidecar/           — Python BLE sidecar
 src/               — TypeScript app
 ```
@@ -60,8 +60,8 @@ src/               — TypeScript app
 
 1. **Read [[docs/SPEC]] before starting any task.** It has the system invariants,
    constraints, and navigation table.
-2. **The MVP is done.** Current work is Phase 6 — read [[docs/PHASE6-PLAN]]
-   before starting any new feature work.
+2. **The MVP is done.** Phase 6 is complete — see [[docs/PHASE6-PLAN]] for history.
+   New feature work should start with an entry in [[docs/ROADMAP]].
 3. **Do not re-litigate the TS/Python split.** It works. ADR-0001 is closed.
 4. **Record decisions as ADRs.** If you make a non-obvious technical choice,
    add an ADR under `docs/adr/` rather than burying it in code comments.
@@ -70,12 +70,12 @@ src/               — TypeScript app
    [[docs/adr/0001-language-split-ts-python-sidecar]].
 6. **Test rendering against PNG files on disk**, not against the panel. Debug
    the picture and the Bluetooth path separately, never together.
-7. **Sprite changes go through `dev/frames.html` first.** Edit the ASCII grids
-   there, preview in a browser, then transcribe approved frames into
-   `src/render/index.ts`. See [[docs/adr/0005-pixel-pet-sprite-system]].
+7. **Sprite changes go through the Studio dev app.** Run `npm run dev:sim`,
+   open the Studio tab, paint in the editor, click "Save sprites" — this writes
+   directly to `src/sprites.ts`. See [[docs/adr/0005-pixel-pet-sprite-system]].
 8. **Before touching the pixel pet or animations**, read
    [[docs/adr/0006-perch-behavior-and-state-machine-lessons]].
 
 ## Status
 
-Phase: **5 complete (2026-05-24)**. Phase 6 planned — see [[docs/PHASE6-PLAN]].
+Phase: **6 complete (2026-05-25)**. See [[docs/PHASE6-PLAN]] for what was done.

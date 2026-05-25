@@ -10,6 +10,7 @@ dist/
 build/
 *.js.map
 dev/render.js
+dist-dev/
 
 # Env / secrets
 .env

@@ -24,8 +24,8 @@ The display runs autonomously — no phone app, no cloud, no interaction require
 - **Test rendering against PNG files, not the panel.** The visual and the
   Bluetooth paths are debugged separately, never together.
 
-- **Sprite changes go through `dev/frames.html` first.** Edit ASCII grids there,
-  preview in a browser, then transcribe into `src/render/index.ts`.
+- **Sprite changes go through the Studio dev app.** Run `npm run dev:sim`, open
+  the Studio tab, edit and preview, click "Save sprites" → writes `src/sprites.ts`.
   → [[adr/0005-pixel-pet-sprite-system]]
 
 ---

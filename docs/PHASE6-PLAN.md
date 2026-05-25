@@ -1,16 +1,57 @@
 # Phase 6 — Refactor, tests, and browser simulator
 
-> Current planned work. See [[SPEC]] for system context and [[ROADMAP]] for phase history.
+> Completed work. See [[SPEC]] for system context and [[ROADMAP]] for phase history.
 
-**Status:** Planned  
-**Motivation:** `advancePet` has grown to ~60 lines with nested conditionals
-(SonarLint flags cognitive complexity 55). Before adding more behaviors, the
-code needs to be easier to reason about and safe to change. A browser simulator
-eliminates the need to connect the physical panel when iterating on visuals.
+**Status:** Complete (2026-05-25)  
+**Original motivation:** `advancePet` had grown to ~60 lines with nested
+conditionals (SonarLint cognitive complexity 55). Before adding more behaviors,
+the code needed to be easier to reason about and safe to change. A browser
+simulator would eliminate the need to connect the physical panel when iterating
+on visuals.
 
 ---
 
-## Part A — Refactor `advancePet`
+## What was actually built
+
+Parts A, B, C were completed together in a single refactoring pass on 2026-05-25.
+
+**Part A — Modular render split**: `src/render/core.ts` (556 lines) was split
+into five focused modules: `canvas.ts` (primitives), `font.ts` (text rendering),
+`icons.ts` (weather icon registry), `pet-draw.ts` (sprite parsing and pet
+drawing), `scene.ts` (scene composition). `core.ts` is now a barrel re-export so
+all existing imports continue to work.
+
+**Registry patterns** replaced switch statements throughout:
+- `ICON_REGISTRY: Record<IconType, IconDef>` — add one entry to add a new weather icon
+- `BEHAVIOR_DRAWERS: Record<PetBehavior, BehaviorDrawer>` in `pet-draw.ts`
+- `BEHAVIOR_ADVANCERS: Partial<Record<PetBehavior, BehaviorAdvancer>>` in `src/pet/index.ts`
+
+**`advancePet` refactor**: Behavior-specific logic extracted into `advanceWalk`,
+`advancePerch`, `advanceSit`, `advanceLie`, `advanceJump` functions. The
+dispatch loop replaced the switch: `const advancer = BEHAVIOR_ADVANCERS[state.behavior]; return advancer ? advancer(…) : advanceTimed(…)`.
+
+**Part B — Dev app rebuilt as Vite + React**: `dev/` replaced with a proper
+Vite 8 + React 18 app (`npm run dev:sim` → localhost:8767). Two tabs:
+- **Simulator**: live animated preview of all weather types + pet behaviors
+- **Studio**: sprite editor with live preview via `drawPetWithSprites`; "Save sprites" writes directly to `src/sprites.ts` with no manual transcription
+
+The `@src` path alias lets React components import directly from `src/` —
+no compiled bundle, no copy-paste, fully DRY.
+
+**Part C — Vitest**: `vitest.config.ts` added at root. `npm test` runs all
+`src/**/*.{test,spec}.ts` files. Separate config needed because `vite.config.ts`
+sets `root: 'dev'` which caused vitest to search the wrong directory.
+
+**Deleted**: `dev/simulator.html`, `dev/studio.html`, `dev/frames.html`,
+`scripts/dev-sim.mjs`, `dev/render.js` build artifact.
+
+---
+
+---
+
+## Original plan (for historical reference)
+
+### Part A — Refactor `advancePet`
 
 ### Goal
 
@@ -46,7 +87,7 @@ globals (`petStepCounter`, `petTailCounter`, `petBlinkTimer`, etc.).
 
 ---
 
-## Part B — Unit tests for the state machine
+### Part B — Unit tests for the state machine
 
 ### Goal
 
@@ -91,7 +132,7 @@ npm i -D vitest
 
 ---
 
-## Part C — Browser simulator
+### Part C — Browser simulator
 
 ### Goal
 
@@ -132,7 +173,7 @@ the walking cat, hot-reloads when `dev/render.js` is rebuilt.
 
 ---
 
-## Part D — Nice-to-have (lower priority)
+### Part D — Nice-to-have (lower priority)
 
 - **More pet behaviors:** eat (hunches over a bowl), scratch ear, yawn (mouth
   open for 2 frames), sleep on the temperature text
@@ -142,7 +183,7 @@ the walking cat, hot-reloads when `dev/render.js` is rebuilt.
 
 ---
 
-## Suggested order
+### Suggested order
 
 ```
 A (refactor) → B (tests) → C (simulator) → D (extras)

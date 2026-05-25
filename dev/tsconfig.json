@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "baseUrl": "..",
+    "paths": {
+      "@src/*": ["src/*"]
+    }
+  },
+  "include": [
+    "src",
+    "../src/render/canvas.ts",
+    "../src/render/font.ts",
+    "../src/render/icons.ts",
+    "../src/render/pet-draw.ts",
+    "../src/render/scene.ts",
+    "../src/pet/index.ts",
+    "../src/sprites.ts",
+    "../src/browser-bundle.ts"
+  ]
+}

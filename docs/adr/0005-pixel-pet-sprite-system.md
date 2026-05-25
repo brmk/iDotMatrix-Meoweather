@@ -90,24 +90,24 @@ on the pre-rendered weather buffer.
 
 ### Visual design tool
 
-`dev/frames.html` is the authoritative visual editor for sprite designs.
-Each sprite is stored as `<pre>` text and rendered into a pixel grid by
-inline JS. To propose sprite changes:
+The Studio tab in the Vite + React dev app (`dev/`) is the authoritative visual
+editor for sprite designs. Run `npm run dev:sim`, open the Studio tab, paint in
+the editor — the live preview calls `drawPetWithSprites` directly from
+`src/render/pet-draw.ts`, so colors and layout are pixel-perfect. Click
+"Save sprites" to write the approved ASCII grids directly to `src/sprites.ts`.
 
-1. Edit the `<pre>` text in the HTML file.
-2. Open in a browser to preview.
-3. Transcribe the approved ASCII grids into `src/render/index.ts`.
-
-The HTML file is committed to the repo alongside the code.
+No manual transcription step; no separate HTML file to keep in sync.
 
 ---
 
 ## Consequences
 
-- Adding a new behavior requires: a new `PetBehavior` union member, a sprite
-  array in `render/index.ts`, a case in `drawPet`, and a roll branch in
-  `advancePet`.
-- Sprite pixel art lives in two places (HTML + TS). Keep them in sync;
-  the HTML is the design source of truth, TS is the runtime source of truth.
+- Adding a new behavior requires: a new `PetBehavior` union member, one entry in
+  `BEHAVIOR_DRAWERS` in `src/render/pet-draw.ts`, and optionally one entry in
+  `BEHAVIOR_ADVANCERS` in `src/pet/index.ts` (behaviors not listed fall back to
+  `advanceTimed`). No switch statements to modify.
+- Sprite pixel art lives in one place: `src/sprites.ts`. The Studio dev app
+  reads from and writes to that file directly — there is no longer a separate
+  HTML design source to keep in sync.
 - The 5-pixel width and `PET_Y_WALK=28` baseline are effectively fixed by
   the frame layout. Changing them requires re-designing all sprites.

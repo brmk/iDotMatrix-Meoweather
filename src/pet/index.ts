@@ -1,5 +1,5 @@
-import { PET_Y_WALK, PET_Y_PERCH, PET_WIDTH } from "../render/core.js";
-import type { PetState, PetBehavior } from "../render/core.js";
+import { PET_Y_WALK, PET_Y_PERCH, PET_WIDTH } from '../render/pet-draw.js';
+import type { PetState, PetBehavior } from '../render/pet-draw.js';
 
 export type { PetBehavior, PetState };
 
@@ -27,22 +27,22 @@ export function makePetContext(rand = Math.random): PetContext {
 
 function rollBehavior(state: PetState, ctx: PetContext, rand: () => number): void {
   const roll = rand();
-  let next: PetBehavior = "walk";
+  let next: PetBehavior = 'walk';
 
   if (!state.isDay) {
-    if      (roll < 0.55) { next = "dream"; ctx.behaviorDur = rndWith(80, 160, rand); }
-    else if (roll < 0.75) { next = "lie";   ctx.behaviorDur = rndWith(50, 100, rand); }
-    else if (roll < 0.90) { next = "sit";   ctx.behaviorDur = rndWith(20, 50, rand);  }
+    if      (roll < 0.55) { next = 'dream'; ctx.behaviorDur = rndWith(80, 160, rand); }
+    else if (roll < 0.75) { next = 'lie';   ctx.behaviorDur = rndWith(50, 100, rand); }
+    else if (roll < 0.90) { next = 'sit';   ctx.behaviorDur = rndWith(20, 50, rand);  }
     ctx.walkBudget = rndWith(3, 10, rand);
   } else {
-    if      (roll < 0.15) { next = "sit";   ctx.behaviorDur = rndWith(30, 80, rand);  }
-    else if (roll < 0.25) { next = "lie";   ctx.behaviorDur = rndWith(50, 120, rand); }
-    else if (roll < 0.35) { next = "jump";  ctx.behaviorDur = 8;                      }
-    else if (roll < 0.85) { next = "perch"; ctx.behaviorDur = rndWith(8, 16, rand);   }
+    if      (roll < 0.15) { next = 'sit';   ctx.behaviorDur = rndWith(30, 80, rand);  }
+    else if (roll < 0.25) { next = 'lie';   ctx.behaviorDur = rndWith(50, 120, rand); }
+    else if (roll < 0.35) { next = 'jump';  ctx.behaviorDur = 8;                      }
+    else if (roll < 0.85) { next = 'perch'; ctx.behaviorDur = rndWith(8, 16, rand);   }
     ctx.walkBudget = rndWith(15, 40, rand);
   }
 
-  if (next !== "walk") {
+  if (next !== 'walk') {
     state.behavior = next;
     state.behaviorFrame = 0;
   }
@@ -91,7 +91,7 @@ export function advancePerch(state: PetState, ctx: PetContext, rand = Math.rando
     state.perchY = Math.min(PET_Y_WALK, state.perchY + 2);
     if (state.perchY >= PET_Y_WALK) {
       state.perchY = PET_Y_WALK;
-      state.behavior = "walk";
+      state.behavior = 'walk';
       state.behaviorFrame = 0;
       ctx.walkBudget = rndWith(15, 40, rand);
     }
@@ -103,11 +103,20 @@ export function advancePerch(state: PetState, ctx: PetContext, rand = Math.rando
 export function advanceTimed(state: PetState, ctx: PetContext): PetState {
   state.behaviorFrame++;
   if (state.behaviorFrame >= ctx.behaviorDur) {
-    state.behavior = "walk";
+    state.behavior = 'walk';
     state.behaviorFrame = 0;
   }
   return state;
 }
+
+// Adding a new behavior with custom advance logic: add an entry here.
+// Behaviors not listed fall back to advanceTimed (increment frame, return to walk when done).
+type BehaviorAdvancer = (state: PetState, ctx: PetContext, rand: () => number) => PetState;
+
+const BEHAVIOR_ADVANCERS: Partial<Record<PetBehavior, BehaviorAdvancer>> = {
+  walk:  advanceWalk,
+  perch: advancePerch,
+};
 
 export function advancePet(state: PetState, ctx: PetContext, rand = Math.random): PetState {
   ctx.tailCounter++;
@@ -125,9 +134,6 @@ export function advancePet(state: PetState, ctx: PetContext, rand = Math.random)
     state.eyesClosed = false;
   }
 
-  switch (state.behavior) {
-    case "walk":  return advanceWalk(state, ctx, rand);
-    case "perch": return advancePerch(state, ctx, rand);
-    default:      return advanceTimed(state, ctx);
-  }
+  const advancer = BEHAVIOR_ADVANCERS[state.behavior];
+  return advancer ? advancer(state, ctx, rand) : advanceTimed(state, ctx);
 }
