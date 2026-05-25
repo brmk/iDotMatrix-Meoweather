@@ -11,6 +11,9 @@ function makeSnapshot(overrides: Partial<WeatherSnapshot> = {}): WeatherSnapshot
     temperature: 0,
     weatherCode: 0,
     isDay: true,
+    humidity: 50,
+    windSpeed: 10,
+    windDirection: 0,
     fetchedAt: new Date('2026-05-25T00:00:00.000Z'),
     ...overrides,
   };
@@ -32,7 +35,7 @@ describe('render regressions', () => {
           }),
         ),
       ),
-    ).toBe('80456e03643e45a430affe3633d1806d70cf15c16e8a7f6546f40907c92a8871');
+    ).toBe('31d1392b84c99c1f8882cf5644c8c2b35d3ba8024192317e5659a599b60cbbec');
 
     expect(
       hashBytes(
@@ -44,7 +47,7 @@ describe('render regressions', () => {
           }),
         ),
       ),
-    ).toBe('05ade2012a290ef32b28039acb9615d5e433bcd6ce8f8965a39b0f34ff00f0c2');
+    ).toBe('7e20c7b599a8a5b01542ec54810b83947f469f3eef346281e4f8fda48e8f92e7');
   });
 
   it('keeps representative thunder animation frames stable', () => {
@@ -57,9 +60,9 @@ describe('render regressions', () => {
     );
 
     expect([0, 6, 7].map((frame) => hashBytes(frames[frame]!.pixels))).toEqual([
-      'f9b2741235b1df083ac4c47aa6f3ea380f2236a8d29015aef861f340a9d60e3e',
-      '86f95878c05ecb8f641c7b7c865846b6abd5128d01e3efab167a4b5b8f88b4d2',
-      '8414480d9da3e17b687ab853d7e4c8a548e69a39fed08933c0f2776973fd8085',
+      '6fe3bbf447a51ef9fb19ab7cf9b9ceef691662b1a15857c7c9dd4a59af4c3e97',
+      'efcc75e46f949b4a440c05fed04cad6db1a94fed3a6e2eb9f6548afca639cf4b',
+      '18581348ad5e0c41a555c2f3da09cdb77af7d56cf7ddf95ae1b3378f2fd4c035',
     ]);
   });
 
@@ -89,6 +92,6 @@ describe('render regressions', () => {
     const composite = new Uint8Array(weatherFrame.pixels);
     drawPet(composite, pet);
 
-    expect(hashBytes(composite)).toBe('63ae977e14049731b2d5136581427449045382cda291a1048b2c2031e8f5c113');
+    expect(hashBytes(composite)).toBe('ed4baf08a63940dfb20e18cd242a2008eb72bb6a9947ec291dd18425c7456895');
   });
 });

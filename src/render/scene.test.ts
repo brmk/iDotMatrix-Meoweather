@@ -10,6 +10,9 @@ function makeSnapshot(overrides: Partial<WeatherSnapshot> = {}): WeatherSnapshot
     temperature: 0,
     weatherCode: 0,
     isDay: true,
+    humidity: 50,
+    windSpeed: 10,
+    windDirection: 0,
     fetchedAt: new Date('2026-05-25T00:00:00.000Z'),
     ...overrides,
   };
@@ -22,10 +25,12 @@ describe('render/scene', () => {
   });
 
   it('derives icon and temperature text from the snapshot once', () => {
-    expect(describeScene(makeSnapshot({ temperature: -3, weatherCode: 2, isDay: false }))).toEqual({
+    expect(describeScene(makeSnapshot({ temperature: -3, weatherCode: 2, isDay: false, humidity: 60, windSpeed: 8 }))).toEqual({
       icon: 'clear-night',
       temperatureText: '-3°C',
       isDay: false,
+      humidity: 60,
+      windSpeed: 8,
     });
   });
 

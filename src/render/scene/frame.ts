@@ -6,6 +6,7 @@ import type { IconType } from '../icons/types.js';
 import { codeToIcon } from '../icons/weather-map.js';
 import { drawCenteredText } from '../text/draw.js';
 import type { AnimationFrame } from '../types.js';
+import { drawSideBars } from './bars.js';
 import { formatTemperature } from './format.js';
 import { applyNightTint } from './tint.js';
 
@@ -15,6 +16,8 @@ export interface SceneDescriptor {
   icon: IconType;
   temperatureText: string;
   isDay: boolean;
+  humidity: number;
+  windSpeed: number;
 }
 
 export function describeScene(snapshot: WeatherSnapshot): SceneDescriptor {
@@ -22,11 +25,14 @@ export function describeScene(snapshot: WeatherSnapshot): SceneDescriptor {
     icon: codeToIcon(snapshot.weatherCode, snapshot.isDay),
     temperatureText: formatTemperature(snapshot.temperature),
     isDay: snapshot.isDay,
+    humidity: snapshot.humidity,
+    windSpeed: snapshot.windSpeed,
   };
 }
 
 export function renderFrame(scene: SceneDescriptor, frame: number): Uint8Array {
   const buf = mkBuf();
+  drawSideBars(buf, scene.humidity, scene.windSpeed);
   drawAnimatedIcon(buf, scene.icon, frame);
   drawCenteredText(buf, scene.temperatureText, TEMPERATURE_Y, WHITE);
   if (!scene.isDay) applyNightTint(buf);
