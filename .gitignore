@@ -16,6 +16,9 @@ dist-dev/
 .env
 .env.*
 
+# Runtime user settings (persisted by the running process)
+runtime.json
+
 # macOS
 .DS_Store
 

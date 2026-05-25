@@ -2,6 +2,7 @@ import './logger.js';
 
 import { controlState } from './control-state.js';
 import { startControlServer } from './control.js';
+import { loadRuntimeConfig } from './runtime-config.js';
 import { config } from './config.js';
 import { advancePet, makePetContext, type PetContext } from './pet/index.js';
 import { drawPet, PET_Y_WALK, pixelsToPng, renderAnimation, type AnimationFrame, type PetState } from './render/index.js';
@@ -32,6 +33,11 @@ const petCtx: PetContext = makePetContext();
 
 controlState.pet = pet;
 controlState.petCtx = petCtx;
+
+// Apply persisted runtime settings (overrides config defaults).
+const runtimeCfg = loadRuntimeConfig();
+if (runtimeCfg.brightness) controlState.brightness = runtimeCfg.brightness;
+if (runtimeCfg.nightHours !== undefined) controlState.nightHours = runtimeCfg.nightHours ?? null;
 
 // ---- Helpers ----
 

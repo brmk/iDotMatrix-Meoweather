@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { controlState } from './control-state.js';
 import type { BrightnessConfig, NightHours } from './control-state.js';
+import { saveRuntimeConfig } from './runtime-config.js';
 import type { PetBehavior } from './render/pet/types.js';
 import type { WeatherSnapshot } from './weather/index.js';
 
@@ -177,6 +178,7 @@ async function routeControlBrightness(req: IncomingMessage, res: ServerResponse)
       day: Math.max(0, Math.min(100, Math.round(day))),
       night: Math.max(0, Math.min(100, Math.round(night))),
     };
+    saveRuntimeConfig({ brightness: controlState.brightness });
     json(res, 200, { ok: true });
   } catch {
     json(res, 400, { error: 'invalid JSON' });
@@ -197,6 +199,7 @@ async function routeControlNightHours(req: IncomingMessage, res: ServerResponse)
       }
       controlState.nightHours = { from: Math.round(from) % 24, to: Math.round(to) % 24 };
     }
+    saveRuntimeConfig({ nightHours: controlState.nightHours });
     json(res, 200, { ok: true });
   } catch {
     json(res, 400, { error: 'invalid JSON' });
