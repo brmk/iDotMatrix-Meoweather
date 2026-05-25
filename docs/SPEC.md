@@ -99,8 +99,9 @@ Full component detail: [[ARCHITECTURE]]
 
 ## Active work
 
-Phase 5 complete (2026-05-24). Phase 6 planned: refactor `advancePet`, add Vitest
-unit tests, build browser simulator. → [[PHASE6-PLAN]]
+Phase 6 is complete and documented in [[PHASE6-PLAN]]. The current refactor and
+test-improvement program is tracked in the temporary living document
+[[REFACTOR-TRACKER]].
 
 ---
 
@@ -116,4 +117,4 @@ unit tests, build browser simulator. → [[PHASE6-PLAN]]
 | Pixel animation bugs to avoid? | [[adr/0006-perch-behavior-and-state-machine-lessons]] |
 | Full component diagram? | [[ARCHITECTURE]] |
 | How to run right now? | [[RUNBOOK]] |
-| What's next? | [[PHASE6-PLAN]] |
+| What's next? | [[REFACTOR-TRACKER]] |

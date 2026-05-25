@@ -45,6 +45,19 @@ sets `root: 'dev'` which caused vitest to search the wrong directory.
 **Deleted**: `dev/simulator.html`, `dev/studio.html`, `dev/frames.html`,
 `scripts/dev-sim.mjs`, `dev/render.js` build artifact.
 
+## Phase outcome
+
+Phase 6 is fully complete. The project now has:
+
+- a split render module instead of a single large `core.ts` implementation
+- registry-driven dispatch for icons and pet behaviors
+- a test runner (`npm test`) with pet state-machine coverage
+- a dedicated browser simulator/studio for visual work without hardware
+
+Any further modularization, DRY cleanup, and test expansion beyond this phase is
+tracked separately in [[REFACTOR-TRACKER]]. That follow-up work is not part of
+Phase 6; this document is now a historical completion record.
+
 ---
 
 ---

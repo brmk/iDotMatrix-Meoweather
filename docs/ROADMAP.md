@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Phases 0–5 complete as of 2026-05-24. Phase 6 in planning — see [[PHASE6-PLAN]].**
+> **Phases 0–6 complete as of 2026-05-25. Ongoing refactor/test hardening is tracked in [[REFACTOR-TRACKER]].**
 >
 > This document is the project's phase history. Each phase records its goal and
 > exit gate. For the current system state, see [[SPEC]].
@@ -106,17 +106,49 @@ current weather automatically on the configured interval.
 
 ---
 
-## Phase 6 — Refactor, tests, browser simulator (planned)
+## Phase 6 — Refactor, tests, browser simulator ✅ (complete 2026-05-25)
 
-See [[PHASE6-PLAN]] for the full plan.
+**Goal:** reduce complexity in the pet/render code, add automated tests around
+the state machine, and make visual iteration possible without the physical
+panel.
+
+**What was built:**
+- **Modular render split** — the former monolithic `src/render/core.ts` was
+  split into focused modules: `canvas.ts`, `font.ts`, `icons.ts`,
+  `pet-draw.ts`, and `scene.ts`. `core.ts` now acts as a compatibility barrel.
+- **Registry-based dispatch** — render and pet behavior selection now use
+  registries instead of growing switch statements:
+  `ICON_REGISTRY`, `BEHAVIOR_DRAWERS`, `BEHAVIOR_ADVANCERS`.
+- **Pet state-machine refactor** — `advancePet` was decomposed into
+  behavior-specific functions such as `advanceWalk`, `advancePerch`,
+  `advanceSit`, `advanceLie`, `advanceJump`, with shared timed fallback logic.
+- **Vitest** — root-level `vitest.config.ts` added; `npm test` now runs
+  TypeScript tests independently of the browser simulator root config.
+- **Browser simulator / studio** — the old static simulator files were replaced
+  with a Vite + React dev app (`npm run dev:sim`) for live preview and sprite
+  editing.
+
+**Exit gate met:** the render/pet refactor landed without changing public
+imports, `npm test` exists and covers the pet state machine regressions, and the
+browser simulator allows visual iteration without the hardware panel.
+
+See [[PHASE6-PLAN]] for the full completion record and historical plan.
+
+---
+
+## Current follow-up work
+
+Phase 6 is done, but follow-up refactor/test hardening is still in progress.
+That work is intentionally tracked outside the numbered phase history in
+[[REFACTOR-TRACKER]] until it is stable enough to fold into permanent docs.
 
 ---
 
 ## Phase dependency diagram
 
 ```
-Phase 0  ──gate──▶  Phase 1  ──gate──▶  Phase 2  ──gate──▶  Phase 3  ──▶  Phase 4  ──▶  Phase 5
-(hardware)         (sidecar)          (TS render)         (MVP loop)    (polish)      (animations)
+Phase 0  ──gate──▶  Phase 1  ──gate──▶  Phase 2  ──gate──▶  Phase 3  ──▶  Phase 4  ──▶  Phase 5  ──▶  Phase 6
+(hardware)         (sidecar)          (TS render)         (MVP loop)    (polish)      (animations)   (refactor/test/sim)
 ```
 
 The gate after Phase 0 was the project's make-or-break point. Everything else

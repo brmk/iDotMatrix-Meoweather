@@ -81,6 +81,18 @@ src/               — TypeScript app
    [[docs/adr/0006-perch-behavior-and-state-machine-lessons]].
 9. **Keep code formatter- and lint-clean.** New code must conform to
    `Prettier` and `ESLint`; do not leave style drift or unused imports behind.
+10. **Documentation sync is part of delivery, not follow-up.** Read
+    [[docs/DOCS-WORKFLOW]] and update the source-of-truth docs in the same
+    session as the code change.
+11. **If a session changes reality, update the doc that describes it.**
+    Structural changes go to `ARCHITECTURE`; workflow changes go to `RUNBOOK`;
+    current-state summary changes go to `SPEC`; numbered phase status changes go
+    to `ROADMAP`; active multi-session work must update its tracker doc.
+12. **Temporary tracker docs are mandatory when active.** If a tracker such as
+    [[docs/REFACTOR-TRACKER]] exists for the current workstream, update its
+    status fields and session log before ending the session.
+13. **Do not leave contradictory docs behind.** If one document was updated in a
+    way that invalidates another, fix both in the same session.
 
 ## Status
 
