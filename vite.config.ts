@@ -225,6 +225,10 @@ export default defineConfig({
   },
   server: {
     port: 8766,
+    host: true,
+    proxy: {
+      '/api': 'http://localhost:3000',
+    },
   },
   build: {
     outDir: resolve(__dirname, 'dist-dev'),

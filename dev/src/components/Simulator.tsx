@@ -34,6 +34,18 @@ function parseWeather(raw: string, night: boolean) {
   return { weatherCode: Number.parseInt(raw, 10), isDay: !night };
 }
 
+interface LiveState {
+  ok: boolean;
+  behavior: string | null;
+  tick: number;
+  weatherCode: number | null;
+  temperature: number | null;
+  isDay: boolean | null;
+  humidity: number | null;
+  windSpeed: number | null;
+  weatherOverride: boolean;
+}
+
 const ctrl: CSSProperties = {
   background: '#2a2a2a',
   color: '#ddd',
@@ -42,6 +54,27 @@ const ctrl: CSSProperties = {
   fontFamily: 'monospace',
   fontSize: 12,
 };
+
+async function postBehavior(behavior: string): Promise<void> {
+  await fetch('/api/control/behavior', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ behavior }),
+  });
+}
+
+async function postWeather(iconVal: string, temp: number, night: boolean): Promise<void> {
+  const { weatherCode, isDay } = parseWeather(iconVal, night);
+  await fetch('/api/control/weather', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weatherCode, isDay, temperature: temp, humidity: 50, windSpeed: 10, windDirection: 0 }),
+  });
+}
+
+async function clearWeather(): Promise<void> {
+  await fetch('/api/control/weather/clear', { method: 'POST' });
+}
 
 export default function Simulator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,18 +106,63 @@ export default function Simulator() {
   const [info, setInfo] = useState('loading…');
   const [behavior, setBehavior] = useState('walk');
 
+  const [remote, setRemote] = useState(false);
+  const [liveState, setLiveState] = useState<LiveState | null>(null);
+
   // Keep latest control values accessible inside the animation loop without restarts.
   const liveRef = useRef({ iconVal, temp, night, speed });
   useEffect(() => {
     liveRef.current = { iconVal, temp, night, speed };
   }, [iconVal, temp, night, speed]);
 
+  // Auto-detect remote control server on mount.
   useEffect(() => {
+    fetch('/api/health')
+      .then((r) => (r.ok ? (r.json() as Promise<LiveState>) : null))
+      .then((data) => {
+        if (data?.ok) setRemote(true);
+      })
+      .catch(() => {/* local-only mode */});
+  }, []);
+
+  // Subscribe to SSE state stream when remote (behavior + weather status).
+  useEffect(() => {
+    if (!remote) return;
+    const es = new EventSource('/api/state');
+    es.onmessage = (e) => {
+      try {
+        setLiveState(JSON.parse(e.data as string) as LiveState);
+      } catch {
+        /* ignore malformed event */
+      }
+    };
+    return () => es.close();
+  }, [remote]);
+
+  // Subscribe to pixel-perfect frame stream when remote — replaces rAF canvas.
+  useEffect(() => {
+    if (!remote) return;
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext('2d')!;
+    const img = new Image();
+
+    const es = new EventSource('/api/frame');
+    es.onmessage = (e) => {
+      img.onload = () => {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0, 32 * SCALE, 32 * SCALE);
+      };
+      img.src = `data:image/png;base64,${e.data as string}`;
+    };
+    return () => es.close();
+  }, [remote]);
+
+  // Local rAF animation loop — runs only when not connected to a live instance.
+  useEffect(() => {
+    if (remote) return;
+
     if (!offRef.current) {
-      offRef.current = Object.assign(document.createElement('canvas'), {
-        width: 32,
-        height: 32,
-      });
+      offRef.current = Object.assign(document.createElement('canvas'), { width: 32, height: 32 });
     }
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
@@ -95,6 +173,9 @@ export default function Simulator() {
       const { iconVal, temp, night, speed } = liveRef.current;
       const snap = {
         temperature: temp,
+        humidity: 0,
+        windSpeed: 0,
+        windDirection: 0,
         fetchedAt: new Date(),
         ...parseWeather(iconVal, night),
       };
@@ -137,59 +218,81 @@ export default function Simulator() {
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+  }, [remote]);
 
-  const forceBehavior = useCallback((b: string) => {
-    setBehavior(b);
-    petRef.current.behavior = b as PetState['behavior'];
-    petRef.current.behaviorFrame = 0;
-    petCtxRef.current.behaviorDur = BEHAVIOR_DUR[b] ?? 0;
-    if (b === 'perch') petRef.current.perchY = PET_Y_WALK;
-  }, []);
+  const forceBehavior = useCallback(
+    (b: string) => {
+      if (remote) {
+        void postBehavior(b);
+        return;
+      }
+      setBehavior(b);
+      petRef.current.behavior = b as PetState['behavior'];
+      petRef.current.behaviorFrame = 0;
+      petCtxRef.current.behaviorDur = BEHAVIOR_DUR[b] ?? 0;
+      if (b === 'perch') petRef.current.perchY = PET_Y_WALK;
+    },
+    [remote],
+  );
+
+  const handleIconVal = useCallback(
+    (val: string) => {
+      setIconVal(val);
+      if (remote) void postWeather(val, temp, night);
+    },
+    [remote, temp, night],
+  );
+
+  const handleTemp = useCallback(
+    (val: number) => {
+      setTemp(val);
+      if (remote) void postWeather(iconVal, val, night);
+    },
+    [remote, iconVal, night],
+  );
+
+  const handleNight = useCallback(
+    (val: boolean) => {
+      setNight(val);
+      if (remote) void postWeather(iconVal, temp, val);
+    },
+    [remote, iconVal, temp],
+  );
+
+  const liveBehavior = liveState?.behavior ?? behavior;
 
   return (
-    <div
-      style={{
-        padding: 24,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 16,
-      }}
-    >
-      <h1 style={{ margin: 0, fontSize: 14, letterSpacing: 2, color: '#888' }}>iDotMatrix 32×32 Simulator</h1>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h1 style={{ margin: 0, fontSize: 14, letterSpacing: 2, color: '#888' }}>iDotMatrix 32×32 Simulator</h1>
+        {remote && (
+          <span style={{ fontSize: 10, color: '#4a8', letterSpacing: 1, border: '1px solid #2a5', padding: '2px 6px' }}>
+            LIVE ●
+          </span>
+        )}
+      </div>
+
       <canvas
         ref={canvasRef}
         width={32 * SCALE}
         height={32 * SCALE}
-        style={{
-          imageRendering: 'pixelated',
-          border: '1px solid #444',
-          background: '#000',
-        }}
+        style={{ imageRendering: 'pixelated', border: `1px solid ${remote ? '#2a5' : '#444'}`, background: '#000' }}
       />
-      <div style={{ fontSize: 10, color: '#555', minHeight: 14 }}>{info}</div>
 
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 12,
-          justifyContent: 'center',
-          maxWidth: 420,
-        }}
-      >
-        <label
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            fontSize: 11,
-            color: '#888',
-          }}
-        >
+      {remote && liveState ? (
+        <div style={{ fontSize: 10, color: '#4a8', letterSpacing: 1 }}>
+          matrix: {liveState.behavior ?? '…'} · tick {liveState.tick} · {liveState.weatherCode}{' '}
+          {liveState.temperature}°C {liveState.isDay ? 'day' : 'night'}
+          {liveState.weatherOverride && ' · weather overridden'}
+        </div>
+      ) : (
+        <div style={{ fontSize: 10, color: '#555', minHeight: 14 }}>{info}</div>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', maxWidth: 420 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
           Weather
-          <select value={iconVal} onChange={(e) => setIconVal(e.target.value)} style={ctrl}>
+          <select value={iconVal} onChange={(e) => handleIconVal(e.target.value)} style={ctrl}>
             {WEATHER_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -198,67 +301,65 @@ export default function Simulator() {
           </select>
         </label>
 
-        <label
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            fontSize: 11,
-            color: '#888',
-          }}
-        >
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
           Temp (°C)
-          <input type="number" value={temp} min={-30} max={50} style={{ ...ctrl, width: 64 }} onChange={(e) => setTemp(Number(e.target.value))} />
+          <input
+            type="number"
+            value={temp}
+            min={-30}
+            max={50}
+            style={{ ...ctrl, width: 64 }}
+            onChange={(e) => handleTemp(Number(e.target.value))}
+          />
         </label>
 
-        <label
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            fontSize: 11,
-            color: '#888',
-          }}
-        >
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
           Night mode
-          <input type="checkbox" checked={night} onChange={(e) => setNight(e.target.checked)} />
+          <input type="checkbox" checked={night} onChange={(e) => handleNight(e.target.checked)} />
         </label>
 
-        <label
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            fontSize: 11,
-            color: '#888',
-          }}
-        >
-          Speed ×{speed.toFixed(2)}
-          <input type="range" min={0.25} max={4} step={0.25} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} style={{ width: 110 }} />
-        </label>
+        {remote && liveState?.weatherOverride && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
+            &nbsp;
+            <button
+              onClick={() => void clearWeather()}
+              style={{ ...ctrl, color: '#fa8', borderColor: '#a64', cursor: 'pointer' }}
+            >
+              Use real weather
+            </button>
+          </label>
+        )}
 
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            fontSize: 11,
-            color: '#888',
-          }}
-        >
-          Force behavior
+        {!remote && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
+            Speed ×{speed.toFixed(2)}
+            <input
+              type="range"
+              min={0.25}
+              max={4}
+              step={0.25}
+              value={speed}
+              onChange={(e) => setSpeed(Number(e.target.value))}
+              style={{ width: 110 }}
+            />
+          </label>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
+          Force behavior {remote && <span style={{ color: '#4a8' }}>(→ matrix)</span>}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {Object.keys(BEHAVIOR_DUR).map((b) => (
               <button
                 key={b}
                 onClick={() => forceBehavior(b)}
                 style={{
-                  background: behavior === b ? '#1a3a1a' : '#333',
-                  color: behavior === b ? '#8f8' : '#ddd',
-                  border: `1px solid ${behavior === b ? '#4a8' : '#555'}`,
+                  background: liveBehavior === b ? '#1a3a1a' : '#333',
+                  color: liveBehavior === b ? '#8f8' : '#ddd',
+                  border: `1px solid ${liveBehavior === b ? '#4a8' : '#555'}`,
                   padding: '5px 10px',
                   fontFamily: 'monospace',
                   fontSize: 11,
+                  cursor: 'pointer',
                 }}
               >
                 {b}

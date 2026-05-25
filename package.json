@@ -14,7 +14,8 @@
     "format:check": "prettier . --check",
     "test": "vitest run --config vitest.config.ts",
     "test:coverage": "vitest run --config vitest.config.ts --coverage.enabled",
-    "dev:sim": "vite"
+    "dev:sim": "vite",
+    "build:ui": "vite build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,3 +1,7 @@
+import './logger.js';
+
+import { controlState } from './control-state.js';
+import { startControlServer } from './control.js';
 import { config } from './config.js';
 import { advancePet, makePetContext, type PetContext } from './pet/index.js';
 import { drawPet, PET_Y_WALK, pixelsToPng, renderAnimation, type AnimationFrame, type PetState } from './render/index.js';
@@ -26,12 +30,41 @@ const pet: PetState = {
 
 const petCtx: PetContext = makePetContext();
 
+controlState.pet = pet;
+controlState.petCtx = petCtx;
+
+// ---- Helpers ----
+
+function pushFrame(b64: string): void {
+  controlState.currentFrame = b64;
+  for (const sub of controlState.frameSubs) {
+    try {
+      sub(b64);
+    } catch {
+      /* subscriber disconnected */
+    }
+  }
+}
+
+function applyBehaviorOverride(): void {
+  if (!controlState.behaviorOverride) return;
+  const { behavior, dur } = controlState.behaviorOverride;
+  pet.behavior = behavior;
+  pet.behaviorFrame = 0;
+  petCtx.behaviorDur = dur;
+  if (behavior === 'perch') pet.perchY = PET_Y_WALK;
+  controlState.behaviorOverride = null;
+}
+
 // ---- Main loop ----
 
 async function run(): Promise<void> {
+  startControlServer();
+
   console.log(`Starting — sidecar ${config.sidecarUrl}`);
 
   let snapshot = await fetchWeather();
+  controlState.snapshot = snapshot;
   let frames: AnimationFrame[] = renderAnimation(snapshot);
   let frameIdx = 0;
   let lastFetch = Date.now();
@@ -44,6 +77,7 @@ async function run(): Promise<void> {
     if (Date.now() - lastFetch >= WEATHER_REFRESH_MS) {
       try {
         snapshot = await fetchWeather();
+        controlState.snapshot = snapshot;
         frames = renderAnimation(snapshot);
         frameIdx = 0;
         lastFetch = Date.now();
@@ -53,17 +87,30 @@ async function run(): Promise<void> {
       }
     }
 
-    const frame = frames[frameIdx % frames.length];
-    const brightness = snapshot.isDay ? config.dayBrightness : config.nightBrightness;
+    if (controlState.weatherDirty) {
+      frames = renderAnimation(controlState.weatherOverride ?? snapshot);
+      frameIdx = 0;
+      controlState.weatherDirty = false;
+    }
 
-    pet.isDay = snapshot.isDay;
+    const effective = controlState.weatherOverride ?? snapshot;
+    const frame = frames[frameIdx % frames.length];
+    const brightness = effective.isDay ? config.dayBrightness : config.nightBrightness;
+
+    pet.isDay = effective.isDay;
     advancePet(pet, petCtx);
+    applyBehaviorOverride();
+    controlState.tick++;
 
     const pixels = new Uint8Array(frame.pixels);
     drawPet(pixels, pet);
 
+    const png = pixelsToPng(pixels);
+
+    pushFrame(png.toString('base64'));
+
     try {
-      await sendToPanel(pixelsToPng(pixels), brightness);
+      await sendToPanel(png, brightness);
     } catch (err) {
       console.error('sendToPanel failed:', err);
     }

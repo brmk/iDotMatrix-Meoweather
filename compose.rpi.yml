@@ -1,0 +1,35 @@
+services:
+  sidecar:
+    image: ${SIDECAR_IMAGE}
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
+      SCAN_TIMEOUT: ${SCAN_TIMEOUT:-15}
+    volumes:
+      - /run/dbus:/run/dbus
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8765/health')); raise SystemExit(0 if 'connected' in data else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 25s
+
+  app:
+    image: ${APP_IMAGE}
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      sidecar:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      SIDECAR_URL: http://127.0.0.1:8765
