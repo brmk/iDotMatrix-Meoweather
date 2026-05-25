@@ -1,4 +1,5 @@
 import type { WeatherSnapshot } from "../weather/index.js";
+import { RAW_SPRITES } from "../sprites.js";
 
 const W = 32;
 const H = 32;
@@ -8,6 +9,9 @@ const H = 32;
 export function mkBuf(): Uint8Array {
   return new Uint8Array(W * H * 3); // all black
 }
+
+
+
 
 export function set(
   buf: Uint8Array,
@@ -426,31 +430,17 @@ function blit(
   }
 }
 
-const WALK = [
-  parseSpr(['..o.o', '..gog', '.oooo', '.r.r.']),  // legs: r (light paws)
-  parseSpr(['..o.o', '..gog', '.oooo', '..rr.']),
-];
-const WALK_BLINK = [
-  parseSpr(['..o.o', '..ooo', '.oooo', '.r.r.']),
-  parseSpr(['..o.o', '..ooo', '.oooo', '..rr.']),
-];
-
-const SIT = [
-  parseSpr(['..o.o', '..gog', '.sooo', '.ssr.']),  // s=dark stripe, r=light paw
-  parseSpr(['..o.o', '..ooo', '.sooo', '.ssr.']),
-];
-
-const LIE = [
-  parseSpr(['..o.o', '..gog', '.oooo']),
-  parseSpr(['..o.o', '..ooo', '.oooo']),
-];
-
+const WALK       = [parseSpr(RAW_SPRITES.WALK_A),  parseSpr(RAW_SPRITES.WALK_B)];
+const WALK_BLINK = [parseSpr(RAW_SPRITES.BLINK_A), parseSpr(RAW_SPRITES.BLINK_B)];
+const SIT        = [parseSpr(RAW_SPRITES.SIT_A),   parseSpr(RAW_SPRITES.SIT_B)];
+const LIE        = [parseSpr(RAW_SPRITES.LIE_A),   parseSpr(RAW_SPRITES.LIE_B)];
 const JUMP: Array<{ pix: Pixel[]; yOff: number }> = [
-  { pix: parseSpr(['..o.o', '..gog', '.oooo', '.r.r.']), yOff:  1 },
-  { pix: parseSpr(['..o.o', '..gog', '.oooo', '.....']), yOff:  0 },
-  { pix: parseSpr(['..o.o', '..gog', '.oooo', '.....']), yOff: -1 },
-  { pix: parseSpr(['..o.o', '..gog', '.oooo', '.r.r.']), yOff:  0 },
+  { pix: parseSpr(RAW_SPRITES.JUMP_1), yOff:  1 },
+  { pix: parseSpr(RAW_SPRITES.JUMP_2), yOff:  0 },
+  { pix: parseSpr(RAW_SPRITES.JUMP_3), yOff: -1 },
+  { pix: parseSpr(RAW_SPRITES.JUMP_4), yOff:  0 },
 ];
+const DREAM = parseSpr(RAW_SPRITES.DREAM);
 
 const TAIL_Y = [1, 2, 1, 2];
 
@@ -514,9 +504,9 @@ export function drawPet(buf: Uint8Array, s: PetState): void {
       baseY = s.perchY;
       break;
     case 'dream':
-      pixels = LIE[1]!;
-      baseY = PET_Y_WALK + 1;
-      drawTail = false;
+      pixels = DREAM;
+      baseY = PET_Y_WALK;   // row 3 (L-tail base) lands at y=31, last visible row
+      drawTail = false;      // tail is baked into sprite as s-pixels
       break;
   }
 

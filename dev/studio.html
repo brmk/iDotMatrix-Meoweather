@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>iDotMatrix Studio</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #141414; color: #ccc; font-family: monospace; font-size: 12px;
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+}
+header {
+  background: #1e1e1e; border-bottom: 1px solid #333; padding: 6px 16px;
+  display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+}
+header h1 { font-size: 12px; letter-spacing: 2px; color: #888; }
+#save-status { font-size: 10px; color: #4a8; transition: opacity .5s; }
+#save-status.stale { color: #a84; }
+main { display: flex; flex: 1; overflow: hidden; }
+
+/* ---- Editor panel ---- */
+#editor { width: 320px; flex-shrink: 0; border-right: 1px solid #2a2a2a;
+  display: flex; flex-direction: column; overflow: hidden; }
+#frame-tabs {
+  display: flex; flex-wrap: wrap; gap: 2px; padding: 6px;
+  background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+}
+.tab {
+  padding: 3px 7px; background: #2a2a2a; border: 1px solid #3a3a3a;
+  color: #888; cursor: pointer; font-family: monospace; font-size: 10px;
+}
+.tab:hover { background: #333; color: #ccc; }
+.tab.active { background: #1a3a1a; border-color: #4a8; color: #8f8; }
+#grid-wrap { padding: 12px; display: flex; justify-content: center; align-items: flex-start; }
+#grid-canvas { cursor: crosshair; image-rendering: pixelated; }
+#palette { display: flex; gap: 6px; padding: 8px 12px; flex-wrap: wrap;
+  border-top: 1px solid #2a2a2a; }
+.swatch {
+  width: 36px; height: 36px; border: 2px solid #444; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: bold; color: #000a;
+}
+.swatch:hover { border-color: #888; }
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #fff4; }
+.swatch.eraser { background: #111 !important; color: #555; border-color: #333; }
+.swatch.eraser.active { border-color: #fff; color: #fff; }
+#editor-footer { padding: 8px 12px; border-top: 1px solid #2a2a2a;
+  display: flex; gap: 8px; flex-wrap: wrap; }
+button.tool {
+  background: #2a2a2a; color: #bbb; border: 1px solid #3a3a3a;
+  padding: 5px 10px; font-family: monospace; font-size: 11px; cursor: pointer;
+}
+button.tool:hover { background: #3a3a3a; color: #eee; }
+
+/* ---- Preview panel ---- */
+#preview { flex: 1; display: flex; gap: 0; overflow: hidden; }
+#preview-left { padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#preview-canvas { image-rendering: pixelated; border: 1px solid #333; cursor: default; }
+#preview-info { font-size: 10px; color: #555; min-height: 14px; }
+#preview-right { padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  width: 210px; border-left: 1px solid #2a2a2a; overflow-y: auto; }
+#preview-right h2 { font-size: 10px; color: #555; letter-spacing: 1px; }
+.ctrl-row { display: flex; flex-direction: column; gap: 3px; }
+.ctrl-row label { font-size: 10px; color: #666; }
+select, input[type=number], input[type=range] {
+  background: #222; color: #ccc; border: 1px solid #3a3a3a;
+  padding: 3px 5px; font-family: monospace; font-size: 11px; width: 100%;
+}
+.behavior-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.b-btn {
+  padding: 4px 8px; background: #2a2a2a; color: #bbb;
+  border: 1px solid #3a3a3a; font-family: monospace; font-size: 10px; cursor: pointer;
+}
+.b-btn:hover { background: #3a3a3a; }
+.b-btn.active { background: #1a3a1a; border-color: #4a8; color: #8f8; }
+hr { border: none; border-top: 1px solid #2a2a2a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>iDotMatrix Studio</h1>
+  <span id="save-status">●  saved</span>
+  <span style="color:#444;font-size:10px">click/drag to paint · right-click to erase</span>
+</header>
+<main>
+  <!-- ========== Editor ========== -->
+  <section id="editor">
+    <div id="frame-tabs"></div>
+    <div id="grid-wrap"><canvas id="grid-canvas"></canvas></div>
+    <div id="palette"></div>
+    <div id="editor-footer">
+      <button class="tool" id="btn-save">Save sprites</button>
+      <button class="tool" id="btn-reset">Reset defaults</button>
+    </div>
+  </section>
+
+  <!-- ========== Preview ========== -->
+  <section id="preview">
+    <div id="preview-left">
+      <canvas id="preview-canvas" width="320" height="320"></canvas>
+      <div id="preview-info">loading render.js…</div>
+    </div>
+    <div id="preview-right">
+      <h2>WEATHER</h2>
+      <div class="ctrl-row"><label>Icon</label>
+        <select id="p-icon">
+          <option value="0_day">☀ Clear Day</option>
+          <option value="0_night">🌙 Clear Night</option>
+          <option value="2">⛅ Partly Cloudy</option>
+          <option value="3">☁ Cloudy</option>
+          <option value="45">🌫 Fog</option>
+          <option value="61">🌧 Rain</option>
+          <option value="82">⛈ Heavy Rain</option>
+          <option value="71">❄ Snow</option>
+          <option value="95">⚡ Thunder</option>
+        </select>
+      </div>
+      <div class="ctrl-row"><label>Temp °C</label>
+        <input id="p-temp" type="number" value="20" min="-30" max="50">
+      </div>
+      <div class="ctrl-row" style="flex-direction:row;align-items:center;gap:8px">
+        <label>Night</label><input id="p-night" type="checkbox">
+      </div>
+      <div class="ctrl-row"><label>Speed ×<span id="p-speed-val">1.0</span></label>
+        <input id="p-speed" type="range" min="0.25" max="4" step="0.25" value="1">
+      </div>
+      <hr>
+      <h2>PET BEHAVIOR</h2>
+      <div class="behavior-btns" id="b-btns"></div>
+    </div>
+  </section>
+</main>
+
+<script src="./render.js"></script>
+<script>
+// ============================================================
+//  Constants
+// ============================================================
+const W = 32, H = 32, SCALE = 10, CELL = 48;
+const PET_Y_WALK = 28, PET_Y_PERCH = 17, PET_WIDTH = 5;
+const TAIL_Y = [1, 2, 1, 2];
+const BEHAVIORS_DUR = { walk:0, sit:60, lie:80, jump:8, perch:12, dream:120 };
+
+const COLORS_DAY = {
+  o:[255,155,30], g:[50,220,80], s:[184,74,10], l:[255,205,130], r:[225,145,65]
+};
+const COLORS_NIGHT = {
+  o:[130,75,15], g:[20,100,35], s:[95,38,5], l:[130,105,65], r:[115,74,33]
+};
+const COLOR_CSS = {
+  '.':'#111', o:'rgb(255,155,30)', g:'rgb(50,220,80)',
+  s:'rgb(184,74,10)', l:'rgb(255,205,130)', r:'rgb(225,145,65)'
+};
+const PALETTE_KEYS = ['.','o','g','s','l','r'];
+
+// ============================================================
+//  Default sprite frames (must match src/render/core.ts)
+// ============================================================
+const FRAME_ORDER = [
+  'WALK_A','WALK_B','BLINK_A','BLINK_B',
+  'SIT_A','SIT_B','LIE_A','LIE_B',
+  'JUMP_1','JUMP_2','JUMP_3','JUMP_4',
+  'DREAM',
+];
+const DEFAULTS = {
+  WALK_A:  ['..o.o','..gog','.oooo','.r.r.'],
+  WALK_B:  ['..o.o','..gog','.oooo','..rr.'],
+  BLINK_A: ['..o.o','..ooo','.oooo','.r.r.'],
+  BLINK_B: ['..o.o','..ooo','.oooo','..rr.'],
+  SIT_A:   ['..o.o','..gog','.sooo','.ssr.'],
+  SIT_B:   ['..o.o','..ooo','.sooo','.ssr.'],
+  LIE_A:   ['..o.o','..gog','.oooo'],
+  LIE_B:   ['..o.o','..ooo','.oooo'],
+  JUMP_1:  ['..o.o','..gog','.oooo','.r.r.'],
+  JUMP_2:  ['..o.o','..gog','.oooo','.o.o.'],
+  JUMP_3:  ['..o.o','..gog','.oooo','.....'],
+  JUMP_4:  ['..o.o','..gog','.oooo','.r.r.'],
+  DREAM:   ['..o.o','..ooo','.ooos','.ssss'],
+};
+
+// ============================================================
+//  State
+// ============================================================
+let frames = loadFromLS();
+let currentFrame = 'WALK_A';
+let selectedColor = 'o';
+let painting = false;
+
+let pet = {
+  x:0, facingRight:true, behavior:'walk', walkFrame:0,
+  behaviorFrame:0, tailPhase:0, isDay:true, eyesClosed:false, perchY:PET_Y_WALK,
+};
+let petCtx = null; // set after SimLib loads
+
+// ============================================================
+//  LocalStorage
+// ============================================================
+function loadFromLS() {
+  try {
+    const raw = localStorage.getItem('studio_frames');
+    if (raw) {
+      const saved = JSON.parse(raw);
+      // merge: use saved values where present, defaults otherwise
+      const out = {};
+      for (const k of FRAME_ORDER) out[k] = saved[k] ?? [...DEFAULTS[k]];
+      return out;
+    }
+  } catch(_) {}
+  return deepCopy(DEFAULTS);
+}
+
+function saveToLS() {
+  localStorage.setItem('studio_frames', JSON.stringify(frames));
+  const el = document.getElementById('save-status');
+  el.textContent = '●  saved';
+  el.classList.remove('stale');
+}
+
+function markDirty() {
+  const el = document.getElementById('save-status');
+  el.textContent = '●  unsaved';
+  el.classList.add('stale');
+}
+
+function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+// ============================================================
+//  Build frame tabs
+// ============================================================
+const tabsEl = document.getElementById('frame-tabs');
+for (const name of FRAME_ORDER) {
+  const btn = document.createElement('button');
+  btn.className = 'tab' + (name === currentFrame ? ' active' : '');
+  btn.textContent = name;
+  btn.dataset.frame = name;
+  btn.onclick = () => selectFrame(name);
+  tabsEl.appendChild(btn);
+}
+
+function selectFrame(name) {
+  currentFrame = name;
+  for (const b of tabsEl.querySelectorAll('.tab'))
+    b.classList.toggle('active', b.dataset.frame === name);
+  redrawGrid();
+}
+
+// ============================================================
+//  Build palette
+// ============================================================
+const paletteEl = document.getElementById('palette');
+for (const k of PALETTE_KEYS) {
+  const sw = document.createElement('div');
+  sw.className = 'swatch' + (k === '.' ? ' eraser' : '') + (k === selectedColor ? ' active' : '');
+  sw.style.background = COLOR_CSS[k];
+  sw.title = k === '.' ? 'erase' : `${k}  ${COLOR_CSS[k]}`;
+  sw.textContent = k === '.' ? '✕' : k;
+  sw.dataset.color = k;
+  sw.onclick = () => {
+    selectedColor = k;
+    for (const s of paletteEl.querySelectorAll('.swatch'))
+      s.classList.toggle('active', s.dataset.color === selectedColor);
+  };
+  paletteEl.appendChild(sw);
+}
+
+// ============================================================
+//  Grid editor
+// ============================================================
+const gridCanvas = document.getElementById('grid-canvas');
+const gctx = gridCanvas.getContext('2d');
+
+function frameToGrid(name) {
+  // returns mutable 2D array [row][col]
+  return frames[name].map(row => [...row.padEnd(5,'.')].slice(0,5));
+}
+
+function gridToRows(grid) {
+  return grid.map(row => row.join(''));
+}
+
+function redrawGrid() {
+  const rows = frameToGrid(currentFrame);
+  const nrows = rows.length, ncols = 5;
+  gridCanvas.width  = ncols * CELL + 1;
+  gridCanvas.height = nrows * CELL + 1;
+
+  // cells
+  for (let r = 0; r < nrows; r++) {
+    for (let c = 0; c < ncols; c++) {
+      const ch = rows[r][c] || '.';
+      gctx.fillStyle = COLOR_CSS[ch] || '#111';
+      gctx.fillRect(c*CELL+1, r*CELL+1, CELL-1, CELL-1);
+      if (ch !== '.') {
+        gctx.fillStyle = 'rgba(0,0,0,0.35)';
+        gctx.font = '15px monospace';
+        gctx.textAlign = 'center';
+        gctx.textBaseline = 'middle';
+        gctx.fillText(ch, c*CELL + CELL/2, r*CELL + CELL/2);
+      }
+    }
+  }
+  // grid lines
+  gctx.strokeStyle = '#2a2a2a';
+  gctx.lineWidth = 1;
+  for (let i = 0; i <= ncols; i++) {
+    gctx.beginPath(); gctx.moveTo(i*CELL+.5,0); gctx.lineTo(i*CELL+.5,nrows*CELL); gctx.stroke();
+  }
+  for (let i = 0; i <= nrows; i++) {
+    gctx.beginPath(); gctx.moveTo(0,i*CELL+.5); gctx.lineTo(ncols*CELL,i*CELL+.5); gctx.stroke();
+  }
+}
+
+function cellFromEvent(e) {
+  const rect = gridCanvas.getBoundingClientRect();
+  const scaleX = gridCanvas.width  / rect.width;
+  const scaleY = gridCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top)  * scaleY;
+  return { col: Math.floor(x / CELL), row: Math.floor(y / CELL) };
+}
+
+function paintAt(e, forceErase) {
+  const { col, row } = cellFromEvent(e);
+  const nrows = frames[currentFrame].length;
+  if (col < 0 || col >= 5 || row < 0 || row >= nrows) return;
+  const color = forceErase ? '.' : selectedColor;
+  const rowArr = [...frames[currentFrame][row]];
+  if (rowArr[col] === color) return;
+  rowArr[col] = color;
+  frames[currentFrame][row] = rowArr.join('');
+  markDirty();
+  redrawGrid();
+}
+
+gridCanvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  painting = true;
+  paintAt(e, e.button === 2);
+});
+gridCanvas.addEventListener('mousemove', e => { if (painting) paintAt(e, e.button === 2); });
+gridCanvas.addEventListener('contextmenu', e => { e.preventDefault(); paintAt(e, true); });
+window.addEventListener('mouseup', () => { if (painting) { painting = false; saveToLS(); } });
+
+redrawGrid();
+
+// ============================================================
+//  Save sprites to src/sprites.ts via dev server
+// ============================================================
+const SAVE_URL = 'http://localhost:8767/save-sprites';
+
+document.getElementById('btn-save').onclick = async () => {
+  const statusEl = document.getElementById('save-status');
+  statusEl.textContent = '● saving…';
+  statusEl.classList.remove('stale');
+  try {
+    const res = await fetch(SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(frames),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    saveToLS();
+    statusEl.textContent = '● saved to disk';
+    setTimeout(() => { statusEl.textContent = '●  saved'; }, 2000);
+  } catch (e) {
+    statusEl.textContent = '● save failed — is npm run dev:sim running?';
+    statusEl.classList.add('stale');
+  }
+};
+
+document.getElementById('btn-reset').onclick = () => {
+  if (!confirm('Reset all frames to defaults?')) return;
+  frames = deepCopy(DEFAULTS);
+  saveToLS();
+  redrawGrid();
+};
+
+// ============================================================
+//  Inline pet renderer (uses editor frames, not SimLib sprites)
+// ============================================================
+function pxSet(buf, x, y, r, g, b) {
+  if (x < 0 || x >= W || y < 0 || y >= H) return;
+  const i = (y*W+x)*3; buf[i]=r; buf[i+1]=g; buf[i+2]=b;
+}
+
+function parseSprLocal(rows) {
+  const out = [];
+  for (let dy = 0; dy < rows.length; dy++) {
+    const row = rows[dy];
+    for (let dx = 0; dx < row.length; dx++) {
+      if (row[dx] !== '.') out.push([dx, dy, row[dx]]);
+    }
+  }
+  return out;
+}
+
+function blitLocal(buf, pixels, x, y, mirror, colors) {
+  for (const [dx, dy, ch] of pixels) {
+    const px = mirror ? x + (PET_WIDTH - 1 - dx) : x + dx;
+    const c = colors[ch];
+    if (c) pxSet(buf, px, y+dy, c[0], c[1], c[2]);
+  }
+}
+
+function drawDreamLocal(buf, pet) {
+  const zX = pet.x + 2;
+  const phase = pet.behaviorFrame % 12;
+  const [r,g,b] = [160,160,255];
+  if (phase < 3) pxSet(buf, zX,   PET_Y_WALK-2, r,g,b);
+  if (phase>=3 && phase<6) pxSet(buf, zX+1, PET_Y_WALK-4, r,g,b);
+  if (phase>=6 && phase<9) pxSet(buf, zX+2, PET_Y_WALK-6, r,g,b);
+}
+
+function drawPetLocal(buf, pet) {
+  const colors = pet.isDay ? COLORS_DAY : COLORS_NIGHT;
+  const mirror = !pet.facingRight;
+  const wf = pet.walkFrame % 2;
+  let sprKey, baseY, drawTail = true;
+
+  switch (pet.behavior) {
+    case 'walk':
+      sprKey = pet.eyesClosed ? (wf===0?'BLINK_A':'BLINK_B') : (wf===0?'WALK_A':'WALK_B');
+      baseY = PET_Y_WALK; break;
+    case 'sit':
+      sprKey = Math.floor(pet.behaviorFrame/20)%2===0 ? 'SIT_A' : 'SIT_B';
+      baseY = PET_Y_WALK; drawTail = false; break;
+    case 'lie':
+      sprKey = Math.floor(pet.behaviorFrame/30)%2===0 ? 'LIE_A' : 'LIE_B';
+      baseY = PET_Y_WALK+1; break;
+    case 'jump': {
+      const ji = Math.min(Math.floor(pet.behaviorFrame/2), 3);
+      sprKey = `JUMP_${ji+1}`;
+      baseY = PET_Y_WALK + [1,0,-1,0][ji]; break;
+    }
+    case 'perch':
+      sprKey = pet.eyesClosed ? (wf===0?'BLINK_A':'BLINK_B') : (wf===0?'WALK_A':'WALK_B');
+      baseY = pet.perchY; break;
+    case 'dream':
+      sprKey = 'DREAM'; baseY = PET_Y_WALK; drawTail = false; break;
+    default:
+      sprKey = 'WALK_A'; baseY = PET_Y_WALK;
+  }
+
+  const spriteRows = frames[sprKey] ?? frames.WALK_A;
+  blitLocal(buf, parseSprLocal(spriteRows), pet.x, baseY, mirror, colors);
+  if (pet.behavior === 'dream') drawDreamLocal(buf, pet);
+
+  if (drawTail) {
+    const tailX = pet.facingRight ? pet.x : pet.x + PET_WIDTH - 1;
+    const ty = TAIL_Y[pet.tailPhase];
+    const tc = colors['s'];
+    if (tc) pxSet(buf, tailX, baseY+ty, tc[0], tc[1], tc[2]);
+  }
+}
+
+// ============================================================
+//  Preview / simulator
+// ============================================================
+const previewCanvas = document.getElementById('preview-canvas');
+const pctx = previewCanvas.getContext('2d');
+const offscreen = document.createElement('canvas');
+offscreen.width = W; offscreen.height = H;
+const octx = offscreen.getContext('2d');
+
+const pIconSel  = document.getElementById('p-icon');
+const pTempInp  = document.getElementById('p-temp');
+const pNightChk = document.getElementById('p-night');
+const pSpeedSld = document.getElementById('p-speed');
+const pSpeedVal = document.getElementById('p-speed-val');
+const pInfoEl   = document.getElementById('preview-info');
+
+pSpeedSld.addEventListener('input', () => {
+  pSpeedVal.textContent = Number.parseFloat(pSpeedSld.value).toFixed(2);
+});
+
+// Behavior buttons
+const bBtnsEl = document.getElementById('b-btns');
+for (const b of Object.keys(BEHAVIORS_DUR)) {
+  const btn = document.createElement('button');
+  btn.className = 'b-btn' + (b === 'walk' ? ' active' : '');
+  btn.textContent = b; btn.dataset.b = b;
+  btn.onclick = () => {
+    pet.behavior = b; pet.behaviorFrame = 0;
+    if (petCtx) petCtx.behaviorDur = BEHAVIORS_DUR[b];
+    if (b === 'perch') pet.perchY = PET_Y_WALK;
+    updateBBtns();
+  };
+  bBtnsEl.appendChild(btn);
+}
+function updateBBtns() {
+  for (const b of bBtnsEl.querySelectorAll('.b-btn'))
+    b.classList.toggle('active', b.dataset.b === pet.behavior);
+}
+
+function getSnapshot() {
+  const raw = pIconSel.value;
+  const night = pNightChk.checked;
+  let weatherCode, isDay;
+  if (raw === '0_night') { weatherCode = 0; isDay = false; }
+  else { weatherCode = Number.parseInt(raw, 10); isDay = !night; }
+  return { weatherCode, temperature: Number.parseInt(pTempInp.value, 10) || 0, isDay };
+}
+
+let frameIdx = 0, lastFrameTime = 0, lastInfoTime = 0, tickCount = 0;
+
+function loop(ts) {
+  requestAnimationFrame(loop);
+  if (!SimLib || !petCtx) return;
+
+  const snap   = getSnapshot();
+  const wFrames = SimLib.renderAnimation(snap);
+  if (!wFrames.length) return;
+
+  const speed = Number.parseFloat(pSpeedSld.value);
+  const f     = wFrames[frameIdx % wFrames.length];
+  if (ts - lastFrameTime < f.delayMs / speed) return;
+  lastFrameTime = ts;
+
+  pet.isDay = snap.isDay;
+  const prevBehavior = pet.behavior;
+  SimLib.advancePet(pet, petCtx);
+  if (pet.behavior !== prevBehavior) updateBBtns();
+
+  // Composite: weather pixels + custom-sprite pet
+  const pixels = new Uint8Array(f.pixels);
+  drawPetLocal(pixels, pet);
+
+  // Paint to offscreen → scale up
+  const imgData = octx.createImageData(W, H);
+  for (let i = 0; i < W*H; i++) {
+    imgData.data[i*4+0] = pixels[i*3+0];
+    imgData.data[i*4+1] = pixels[i*3+1];
+    imgData.data[i*4+2] = pixels[i*3+2];
+    imgData.data[i*4+3] = 255;
+  }
+  octx.putImageData(imgData, 0, 0);
+  pctx.imageSmoothingEnabled = false;
+  pctx.drawImage(offscreen, 0, 0, W*SCALE, H*SCALE);
+
+  frameIdx = (frameIdx+1) % wFrames.length;
+  tickCount++;
+
+  if (ts - lastInfoTime >= 1000) {
+    pInfoEl.textContent =
+      `${tickCount} fps · ${f.delayMs}ms · ${pet.behavior} · x:${pet.x} · editing: ${currentFrame}`;
+    tickCount = 0; lastInfoTime = ts;
+  }
+}
+
+// Init after SimLib is available
+if (typeof SimLib !== 'undefined') {
+  petCtx = SimLib.makePetContext();
+  pInfoEl.textContent = '';
+  requestAnimationFrame(loop);
+} else {
+  pInfoEl.textContent = 'render.js missing — run: npm run build:sim';
+}
+</script>
+</body>
+</html>
