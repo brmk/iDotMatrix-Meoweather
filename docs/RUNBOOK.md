@@ -25,6 +25,21 @@ npm run start:sidecar
 npm start
 ```
 
+## Code quality commands
+
+```bash
+npm run format      # Prettier write mode, includes import organization
+npm run format:check
+npm run lint
+npm run lint:fix
+npm run typecheck
+npm test
+```
+
+Use `format + lint + typecheck` as the default final verification pass after
+TypeScript or React changes. `npm test` should be added whenever behavior or
+rendering logic changed.
+
 ## Install as background service (Login Item)
 
 ```bash
@@ -112,3 +127,5 @@ curl -F file=@/tmp/test32.png http://localhost:8765/display
 
 - All Bluetooth code stays in `sidecar/`. TypeScript never imports a BLE library.
 - Non-obvious decisions get an ADR in `docs/adr/`, not a code comment.
+- Code leaving the repo should already pass `npm run format`, `npm run lint`,
+  and `npm run typecheck`.

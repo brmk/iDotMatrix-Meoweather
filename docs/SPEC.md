@@ -1,6 +1,6 @@
 # System Spec
 
-> One-page mental model for this project. Read this after [[../CLAUDE]] to get full context.
+> One-page mental model for this project. Read this after [[../AGENTS]] to get full context.
 
 A macOS home-server that fetches current weather from the internet and renders it
 as a looping pixel animation on an iDotMatrix 32×32 LED display over Bluetooth.
