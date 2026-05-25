@@ -154,6 +154,8 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
 
   const [iconVal, setIconVal] = useState('0_day');
   const [temp, setTemp] = useState(20);
+  const [humidity, setHumidity] = useState(50);
+  const [windSpeed, setWindSpeed] = useState(10);
   const [night, setNight] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [info, setInfo] = useState('');
@@ -188,13 +190,15 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
     frames,
     iconVal,
     temp,
+    humidity,
+    windSpeed,
     night,
     speed,
     behaviorConfig,
   });
   useEffect(() => {
-    liveRef.current = { frames, iconVal, temp, night, speed, behaviorConfig };
-  }, [frames, iconVal, temp, night, speed, behaviorConfig]);
+    liveRef.current = { frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig };
+  }, [frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig]);
   useEffect(() => {
     syncBehaviorConfigRuntime(behaviorConfig);
   }, [behaviorConfig]);
@@ -251,7 +255,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
 
     function loop(ts: number) {
       rafRef.current = requestAnimationFrame(loop);
-      const { frames, iconVal, temp, night, speed, behaviorConfig } = liveRef.current;
+      const { frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig } = liveRef.current;
       const raw = iconVal;
       const snap =
         raw === '0_night'
@@ -259,12 +263,18 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
               weatherCode: 0,
               isDay: false,
               temperature: temp,
+              humidity,
+              windSpeed,
+              windDirection: 0,
               fetchedAt: new Date(),
             }
           : {
               weatherCode: Number.parseInt(raw, 10),
               isDay: !night,
               temperature: temp,
+              humidity,
+              windSpeed,
+              windDirection: 0,
               fetchedAt: new Date(),
             };
       const wFrames = renderAnimation(snap);
@@ -684,6 +694,14 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
               >
                 Temp °C
                 <input type="number" value={temp} min={-30} max={50} style={inp} onChange={(e) => setTemp(Number(e.target.value))} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
+                Humidity {humidity}%
+                <input type="range" min={0} max={100} step={1} value={humidity} style={inp} onChange={(e) => setHumidity(Number(e.target.value))} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
+                Wind {windSpeed} km/h
+                <input type="range" min={0} max={60} step={1} value={windSpeed} style={inp} onChange={(e) => setWindSpeed(Number(e.target.value))} />
               </label>
               <label
                 style={{
