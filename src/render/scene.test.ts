@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { WeatherSnapshot } from '../weather/index.js';
-import { ANIM } from './icons.js';
-import { applyNightTint, describeScene, formatTemperature, render, renderAnimation, renderFrame } from './scene.js';
+import { ANIM } from './icons/registry.js';
+import { formatTemperature } from './scene/format.js';
+import { describeScene, render, renderAnimationFrames, renderFrame } from './scene/frame.js';
+import { applyNightTint } from './scene/tint.js';
 
 function makeSnapshot(overrides: Partial<WeatherSnapshot> = {}): WeatherSnapshot {
   return {
@@ -36,7 +38,7 @@ describe('render/scene', () => {
 
   it('uses icon animation metadata to build the frame list', () => {
     const snapshot = makeSnapshot({ temperature: 6, weatherCode: 61, isDay: true });
-    const frames = renderAnimation(snapshot);
+    const frames = renderAnimationFrames(snapshot);
 
     expect(frames).toHaveLength(ANIM.rain.count);
     expect(new Set(frames.map((frame) => frame.delayMs))).toEqual(new Set([ANIM.rain.delayMs]));

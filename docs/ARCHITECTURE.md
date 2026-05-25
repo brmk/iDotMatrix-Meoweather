@@ -47,6 +47,23 @@ This is the only component with a real design challenge (drawing legibly on
 1024 pixels) and the only one worth iterating on visually. It must be testable
 without any hardware — given a snapshot, it produces a file you can open.
 
+The render subsystem is now split by concern rather than kept in a single file:
+
+- `render/canvas.ts` — low-level buffer primitives and display dimensions
+- `render/icons/` — icon contracts, palettes, geometry/effects, registry wiring,
+  and weather-code mapping
+- `render/text/` — glyph data, width measurement, and explicit text layout/draw
+  helpers
+- `render/pet/` — pet palettes, sprite parsing/cache, behavior draw resolution,
+  and final overlay drawing
+- `render/scene/` — scene description, frame composition, temperature
+  formatting, and night tinting
+- `render/index.ts` — the stable render/PNG boundary exported to the rest of the
+  app
+
+Module imports now target these concrete files directly. Re-export-only
+compatibility barrels were removed once the refactor stabilized.
+
 ### scheduler/ (TypeScript)
 A plain interval loop: fetch → render → hand to transport. No cron daemon
 needed for the MVP.
@@ -69,6 +86,10 @@ sealed appliance: a PNG goes in, the panel updates.
   self-describing (dimensions baked in), trivially inspectable, and decouples the
   TS renderer's internals from the sidecar.
   → [[adr/0002-http-boundary-png-contract]]
+- **Render internals stay pure and deterministic.** The render pipeline is
+  covered by unit tests, hash-based regression tests for representative scenes,
+  and enforced global coverage thresholds in Vitest so visual drift is caught
+  without hardware.
 
 ## Non-goals (for the MVP)
 

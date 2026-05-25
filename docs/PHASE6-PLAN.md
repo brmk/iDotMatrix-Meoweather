@@ -54,9 +54,10 @@ Phase 6 is fully complete. The project now has:
 - a test runner (`npm test`) with pet state-machine coverage
 - a dedicated browser simulator/studio for visual work without hardware
 
-Any further modularization, DRY cleanup, and test expansion beyond this phase is
-tracked separately in [[REFACTOR-TRACKER]]. That follow-up work is not part of
-Phase 6; this document is now a historical completion record.
+The later modularization cleanup, test expansion, coverage enforcement, and
+direct-import simplification that followed Phase 6 has now been completed and
+folded into the durable project docs. This document remains a historical
+completion record for Phase 6 itself.
 
 ---
 

@@ -97,11 +97,13 @@ Full component detail: [[ARCHITECTURE]]
 
 ---
 
-## Active work
+## Current state
 
-Phase 6 is complete and documented in [[PHASE6-PLAN]]. The current refactor and
-test-improvement program is tracked in the temporary living document
-[[REFACTOR-TRACKER]].
+Phase 6 is complete and its follow-up refactor/test-hardening work has also
+been completed and folded into the durable docs. The current codebase now uses
+modular `render/icons/`, `render/text/`, `render/pet/`, and `render/scene/`
+subsystems, direct module imports instead of compatibility barrels, deterministic
+render regression tests, and enforced coverage thresholds in Vitest.
 
 ---
 
@@ -117,4 +119,4 @@ test-improvement program is tracked in the temporary living document
 | Pixel animation bugs to avoid? | [[adr/0006-perch-behavior-and-state-machine-lessons]] |
 | Full component diagram? | [[ARCHITECTURE]] |
 | How to run right now? | [[RUNBOOK]] |
-| What's next? | [[REFACTOR-TRACKER]] |
+| What's next? | [[ROADMAP]] |

@@ -1,6 +1,8 @@
 # Roadmap
 
-> **Phases 0–6 complete as of 2026-05-25. Ongoing refactor/test hardening is tracked in [[REFACTOR-TRACKER]].**
+> **Phases 0–6 complete as of 2026-05-25. The post-Phase-6 refactor/test
+> hardening program also completed on 2026-05-25 and has been folded into the
+> durable project docs.**
 >
 > This document is the project's phase history. Each phase records its goal and
 > exit gate. For the current system state, see [[SPEC]].
@@ -53,10 +55,10 @@ disk. The panel is not involved.
   (see [[adr/0003-weather-data-source]]).
 - `src/render/index.ts` — pure function: `WeatherSnapshot → 32×32 PNG`
   (see [[adr/0004-rendering-approach-32x32]]).
-- `src/dev.ts` — dev script that fetches weather and writes `out.png`.
 
-**Exit gate met:** running the dev script produced a readable 32×32 weather PNG
-on disk (icon + temperature). Verified by looking at the file, not the panel.
+**Exit gate met:** a local render smoke script produced a readable 32×32 weather
+PNG on disk (icon + temperature). Verified by looking at the file, not the
+panel.
 
 ---
 
@@ -113,34 +115,39 @@ the state machine, and make visual iteration possible without the physical
 panel.
 
 **What was built:**
-- **Modular render split** — the former monolithic `src/render/core.ts` was
-  split into focused modules: `canvas.ts`, `font.ts`, `icons.ts`,
-  `pet-draw.ts`, and `scene.ts`. `core.ts` now acts as a compatibility barrel.
+- **Modular render split** — render logic now lives in focused `src/render/`
+  subdirectories: `icons/`, `text/`, `pet/`, and `scene/`, with
+  `src/render/index.ts` as the stable PNG/render boundary.
+- **Direct imports instead of compatibility barrels** — once the refactor
+  stabilized, re-export-only entry points such as `core.ts`, `font.ts`,
+  `icons.ts`, `pet-draw.ts`, and `scene.ts` were removed.
 - **Registry-based dispatch** — render and pet behavior selection now use
   registries instead of growing switch statements:
   `ICON_REGISTRY`, `BEHAVIOR_DRAWERS`, `BEHAVIOR_ADVANCERS`.
 - **Pet state-machine refactor** — `advancePet` was decomposed into
-  behavior-specific functions such as `advanceWalk`, `advancePerch`,
-  `advanceSit`, `advanceLie`, `advanceJump`, with shared timed fallback logic.
-- **Vitest** — root-level `vitest.config.ts` added; `npm test` now runs
-  TypeScript tests independently of the browser simulator root config.
+  behavior-specific functions such as `advanceWalk`, `advancePerch`, and
+  shared timed fallback logic.
+- **Vitest + coverage enforcement** — root-level `vitest.config.ts` and
+  `npm test` / `npm run test:coverage` now cover unit tests, deterministic
+  render regressions, and global coverage thresholds.
 - **Browser simulator / studio** — the old static simulator files were replaced
   with a Vite + React dev app (`npm run dev:sim`) for live preview and sprite
-  editing.
+  editing, now importing directly from `src/` modules.
 
-**Exit gate met:** the render/pet refactor landed without changing public
-imports, `npm test` exists and covers the pet state machine regressions, and the
-browser simulator allows visual iteration without the hardware panel.
+**Exit gate met:** the render/pet refactor landed, direct module imports
+replaced temporary compatibility barrels, `npm test` plus
+`npm run test:coverage` protect logic/render regressions, and the browser
+simulator allows visual iteration without the hardware panel.
 
 See [[PHASE6-PLAN]] for the full completion record and historical plan.
 
 ---
 
-## Current follow-up work
+## Post-phase outcome
 
-Phase 6 is done, but follow-up refactor/test hardening is still in progress.
-That work is intentionally tracked outside the numbered phase history in
-[[REFACTOR-TRACKER]] until it is stable enough to fold into permanent docs.
+The follow-up refactor/test-hardening program that started after Phase 6 is now
+complete and reflected in `SPEC`, `ARCHITECTURE`, `RUNBOOK`, and the updated
+historical notes.
 
 ---
 

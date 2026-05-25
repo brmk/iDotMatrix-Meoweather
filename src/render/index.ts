@@ -2,9 +2,32 @@ import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import type { WeatherSnapshot } from '../weather/index.js';
 import { DISPLAY_HEIGHT, DISPLAY_WIDTH, RGB_CHANNELS } from './canvas.js';
-import { render } from './core.js';
+import { render, renderAnimationFrames } from './scene/frame.js';
 
-export * from './core.js';
+export * from './canvas.js';
+export * from './colors.js';
+export * from './icons/effects.js';
+export * from './icons/palette.js';
+export * from './icons/primitives.js';
+export * from './icons/registry.js';
+export * from './icons/types.js';
+export * from './icons/weather-map.js';
+export * from './pet/behaviors.js';
+export * from './pet/colors.js';
+export * from './pet/draw.js';
+export * from './pet/sprites.js';
+export * from './pet/types.js';
+export * from './scene/format.js';
+export * from './scene/frame.js';
+export * from './scene/tint.js';
+export * from './text/draw.js';
+export * from './text/glyphs.js';
+export * from './text/measure.js';
+export * from './types.js';
+
+export function renderAnimation(snapshot: WeatherSnapshot) {
+  return renderAnimationFrames(snapshot);
+}
 
 // ---- PNG writer (Node built-ins only) ----
 

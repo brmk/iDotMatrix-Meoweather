@@ -1,8 +1,10 @@
 import { EDITABLE_BEHAVIORS, PET_BEHAVIOR_CONFIG, type BehaviorChanceConfig, type BehaviorPeriodConfig, type PetBehaviorConfig } from '@src/pet/config';
 import type { PetContext, PetState } from '@src/pet/index';
 import { advancePet, makePetContext } from '@src/pet/index';
-import { drawPetWithSprites, PET_DAY, PET_Y_WALK } from '@src/render/pet-draw';
-import { renderAnimation } from '@src/render/scene';
+import { PET_DAY } from '@src/render/pet/colors';
+import { drawPetWithSprites } from '@src/render/pet/draw';
+import { PET_Y_WALK } from '@src/render/pet/sprites';
+import { renderAnimationFrames as renderAnimation } from '@src/render/scene/frame';
 import { RAW_SPRITES, type SpriteKey } from '@src/sprites';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 

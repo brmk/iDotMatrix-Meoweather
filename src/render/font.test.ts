@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DISPLAY_WIDTH, RGB_CHANNELS, mkBuf } from './canvas.js';
-import { drawCenteredText, drawTextAt, measureText } from './font.js';
+import { drawCenteredText, drawTextAt } from './text/draw.js';
+import { measureText } from './text/measure.js';
 
 function findColoredXs(buf: Uint8Array): number[] {
   const xs = new Set<number>();

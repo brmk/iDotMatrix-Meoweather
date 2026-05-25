@@ -27,6 +27,7 @@ dist-dev/
 /tmp/
 out.png
 test_*.png
+coverage/
 
 # Service logs
 logs/*.log

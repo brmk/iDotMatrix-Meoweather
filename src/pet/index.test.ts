@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PET_WIDTH, PET_Y_PERCH, PET_Y_WALK } from '../render/core.js';
+import { PET_WIDTH, PET_Y_PERCH, PET_Y_WALK } from '../render/pet/sprites.js';
 import { advancePerch, advancePet, advanceTimed, advanceWalk, type PetContext, type PetState } from './index.js';
 
 function makeState(overrides: Partial<PetState> = {}): PetState {

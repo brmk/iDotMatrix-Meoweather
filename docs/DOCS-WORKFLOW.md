@@ -44,7 +44,7 @@ Use each document for one job only.
 | `docs/RUNBOOK.md` | How to run, test, debug, and verify | Commands or developer workflow changed |
 | `docs/ROADMAP.md` | Historical phase record | A numbered phase starts, completes, or is reclassified |
 | `docs/PHASE6-PLAN.md` | Historical completion record for Phase 6 | Only if historical Phase 6 record was inaccurate |
-| `docs/REFACTOR-TRACKER.md` | Temporary living tracker for active refactor/test work | Any tracked task/status changed during the session |
+| `docs/*-TRACKER.md` | Temporary living tracker for active multi-session work | Any tracked task/status changed during the session |
 | `docs/adr/*.md` | Durable non-obvious technical decisions | A decision needs rationale preserved long-term |
 
 Rule of thumb:
@@ -142,7 +142,7 @@ If the answer to any of these is "no" or "not sure", doc sync is not complete.
 
 ## Temporary tracker lifecycle
 
-For temporary tracker docs such as `docs/REFACTOR-TRACKER.md`:
+For temporary tracker docs such as `docs/*-TRACKER.md`:
 
 - use them for active multi-session work
 - keep statuses current after every meaningful session

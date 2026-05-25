@@ -34,11 +34,13 @@ npm run lint
 npm run lint:fix
 npm run typecheck
 npm test
+npm run test:coverage
 ```
 
 Use `format + lint + typecheck` as the default final verification pass after
 TypeScript or React changes. `npm test` should be added whenever behavior or
-rendering logic changed.
+rendering logic changed. `npm run test:coverage` enforces the project's current
+global thresholds (`85%` lines/statements, `75%` branches, `85%` functions).
 
 ## Install as background service (Login Item)
 
@@ -106,6 +108,10 @@ curl -F file=@/tmp/test32.png http://localhost:8765/display
 # Generate PNGs for all 9 icon types
 ./node_modules/.bin/tsx src/test-icons.ts
 ```
+
+Representative render regressions are also covered automatically in the test
+suite via deterministic hash assertions. They do not write image files during
+normal test runs.
 
 ---
 

@@ -89,7 +89,7 @@ src/               — TypeScript app
     current-state summary changes go to `SPEC`; numbered phase status changes go
     to `ROADMAP`; active multi-session work must update its tracker doc.
 12. **Temporary tracker docs are mandatory when active.** If a tracker such as
-    [[docs/REFACTOR-TRACKER]] exists for the current workstream, update its
+    `docs/*-TRACKER.md` exists for the current workstream, update its
     status fields and session log before ending the session.
 13. **Do not leave contradictory docs behind.** If one document was updated in a
     way that invalidates another, fix both in the same session.

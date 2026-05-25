@@ -93,7 +93,7 @@ on the pre-rendered weather buffer.
 The Studio tab in the Vite + React dev app (`dev/`) is the authoritative visual
 editor for sprite designs. Run `npm run dev:sim`, open the Studio tab, paint in
 the editor — the live preview calls `drawPetWithSprites` directly from
-`src/render/pet-draw.ts`, so colors and layout are pixel-perfect. Click
+`src/render/pet/draw.ts`, so colors and layout are pixel-perfect. Click
 "Save sprites" to write the approved ASCII grids directly to `src/sprites.ts`.
 
 No manual transcription step; no separate HTML file to keep in sync.
@@ -103,7 +103,7 @@ No manual transcription step; no separate HTML file to keep in sync.
 ## Consequences
 
 - Adding a new behavior requires: a new `PetBehavior` union member, one entry in
-  `BEHAVIOR_DRAWERS` in `src/render/pet-draw.ts`, and optionally one entry in
+  `resolvePetBehaviorDraw()` in `src/render/pet/behaviors.ts`, and optionally one entry in
   `BEHAVIOR_ADVANCERS` in `src/pet/index.ts` (behaviors not listed fall back to
   `advanceTimed`). No switch statements to modify.
 - Sprite pixel art lives in one place: `src/sprites.ts`. The Studio dev app

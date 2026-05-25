@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ANIM, codeToIcon, ICON_REGISTRY, ICON_TYPES, listRegisteredIcons } from './icons.js';
+import { ANIM, drawAnimatedIcon, ICON_REGISTRY, listRegisteredIcons } from './icons/registry.js';
+import { ICON_TYPES } from './icons/types.js';
+import { codeToIcon } from './icons/weather-map.js';
 
 describe('render/icons weather map', () => {
   it.each([
@@ -47,5 +49,10 @@ describe('render/icons registry', () => {
       expect(ICON_REGISTRY[icon].delayMs).toBeGreaterThan(0);
       expect(typeof ICON_REGISTRY[icon].draw).toBe('function');
     }
+  });
+
+  it('drawAnimatedIcon delegates to a registered drawer', () => {
+    const buf = new Uint8Array(32 * 32 * 3);
+    expect(() => drawAnimatedIcon(buf, 'clear-day', 0)).not.toThrow();
   });
 });

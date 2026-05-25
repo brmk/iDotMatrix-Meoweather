@@ -1,6 +1,6 @@
 import { DISPLAY_WIDTH } from '../render/canvas.js';
-import type { PetBehavior, PetState } from '../render/pet-draw.js';
-import { PET_WIDTH, PET_Y_PERCH, PET_Y_WALK } from '../render/pet-draw.js';
+import { PET_WIDTH, PET_Y_PERCH, PET_Y_WALK } from '../render/pet/sprites.js';
+import type { PetBehavior, PetState } from '../render/pet/types.js';
 import { PET_BEHAVIOR_CONFIG, type BehaviorPeriodConfig } from './config.js';
 
 export type { PetBehavior, PetState };

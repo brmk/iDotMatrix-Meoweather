@@ -1,8 +1,10 @@
 import type { WeatherSnapshot } from '../../weather/index.js';
 import { mkBuf } from '../canvas.js';
 import { WHITE } from '../colors.js';
-import { drawCenteredText } from '../font.js';
-import { ANIM, codeToIcon, drawAnimatedIcon, type IconType } from '../icons.js';
+import { ANIM, drawAnimatedIcon } from '../icons/registry.js';
+import type { IconType } from '../icons/types.js';
+import { codeToIcon } from '../icons/weather-map.js';
+import { drawCenteredText } from '../text/draw.js';
 import type { AnimationFrame } from '../types.js';
 import { formatTemperature } from './format.js';
 import { applyNightTint } from './tint.js';
@@ -39,4 +41,8 @@ export function renderAnimationFrames(snapshot: WeatherSnapshot): AnimationFrame
     pixels: renderFrame(scene, frame),
     delayMs,
   }));
+}
+
+export function render(snapshot: WeatherSnapshot): Uint8Array {
+  return renderFrame(describeScene(snapshot), 0);
 }

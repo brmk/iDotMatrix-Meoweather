@@ -1,6 +1,8 @@
-import { drawPet, PET_Y_WALK, renderAnimation } from '@src/browser-bundle';
 import type { PetContext, PetState } from '@src/pet/index';
 import { advancePet, makePetContext } from '@src/pet/index';
+import { drawPet } from '@src/render/pet/draw';
+import { PET_Y_WALK } from '@src/render/pet/sprites';
+import { renderAnimationFrames as renderAnimation } from '@src/render/scene/frame';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 
 const SCALE = 10;

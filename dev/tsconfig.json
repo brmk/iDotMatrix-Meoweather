@@ -10,15 +10,5 @@
       "@src/*": ["../src/*"]
     }
   },
-  "include": [
-    "src",
-    "../src/render/canvas.ts",
-    "../src/render/font.ts",
-    "../src/render/icons.ts",
-    "../src/render/pet-draw.ts",
-    "../src/render/scene.ts",
-    "../src/pet/index.ts",
-    "../src/sprites.ts",
-    "../src/browser-bundle.ts"
-  ]
+  "include": ["src", "../src/**/*.ts"]
 }

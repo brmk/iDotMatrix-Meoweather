@@ -1,4 +1,6 @@
 # src/ — TypeScript application
 
-Populated from **Phase 2** onward (see docs/ROADMAP.md): weather/, render/,
-scheduler/, transport/. No Bluetooth code ever lives here.
+Runtime code lives in `weather/`, `render/`, `pet/`, `transport/`, and the
+top-level `main.ts` loop. The render subsystem is split into direct-import
+modules under `render/icons/`, `render/text/`, `render/pet/`, and
+`render/scene/`. No Bluetooth code ever lives here.

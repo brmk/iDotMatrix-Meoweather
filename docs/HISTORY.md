@@ -114,10 +114,9 @@ The panel is not involved in this phase.
   valid PNG. Layout: weather icon in rows 0-17, 3×5 pixel-font temperature
   in rows 21-25. Nine icon types: clear-day, clear-night, partly-cloudy,
   cloudy, fog, rain, heavy-rain, snow, thunder.
-- `src/dev.ts` — fetches live weather and writes `out.png`.
 - `src/test-icons.ts` — writes one PNG per icon type for visual inspection.
 
-The dev script output confirmed live weather fetch (code=1, 12°C, night)
+A local render smoke run confirmed live weather fetch (code=1, 12°C, night)
 and produced a valid 32×32 RGB PNG. Gate passed.
 
 ---
