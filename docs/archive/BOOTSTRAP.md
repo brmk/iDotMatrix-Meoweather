@@ -1,5 +1,10 @@
 # Bootstrap prompt for Claude Code
 
+> **Archived.** This file was used to scaffold the initial documentation before
+> the project was built. It is not relevant to ongoing development.
+
+
+
 Paste the block below into Claude Code **in an empty project directory**. It
 instructs the agent to generate the full docs scaffold for this project before
 any implementation begins. After it runs, you start real work with

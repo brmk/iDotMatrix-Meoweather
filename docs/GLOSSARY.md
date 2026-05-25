@@ -1,6 +1,7 @@
 # Glossary
 
 Short definitions of terms used across the docs and code.
+For system context, see [[SPEC]].
 
 **iDotMatrix** — A family of cheap Bluetooth LED pixel displays sold on
 AliExpress and controlled by a vendor mobile app. Sizes include 16×16, 32×32,

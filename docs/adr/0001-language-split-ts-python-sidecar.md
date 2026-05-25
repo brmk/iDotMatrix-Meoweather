@@ -44,3 +44,7 @@ local HTTP boundary (see ADR-0002).
   in the sidecar.
 - The upstream library is GPL-3.0 and single-maintainer; pin its version after
   Phase 0 and be aware of the license if this is ever published.
+
+## See also
+
+- [[0002-http-boundary-png-contract]] — the HTTP boundary that results from this split

@@ -1,5 +1,7 @@
 # Phase 6 — Refactor, tests, and browser simulator
 
+> Current planned work. See [[SPEC]] for system context and [[ROADMAP]] for phase history.
+
 **Status:** Planned  
 **Motivation:** `advancePet` has grown to ~60 lines with nested conditionals
 (SonarLint flags cognitive complexity 55). Before adding more behaviors, the
@@ -49,6 +51,7 @@ globals (`petStepCounter`, `petTailCounter`, `petBlinkTimer`, etc.).
 ### Goal
 
 Cover the bugs that were found in this session so they can't regress silently.
+See [[adr/0006-perch-behavior-and-state-machine-lessons]] for the full bug catalogue.
 
 ### Test cases to write (Vitest or Node `--test`)
 
@@ -103,7 +106,8 @@ browser canvas — no panel, no sidecar, no BLE. Allows fast iteration on:
 ### Approach
 
 Bundle `src/render/index.ts` with `esbuild` into a single browser JS file,
-then drive it from a tiny HTML harness:
+then drive it from a tiny HTML harness.
+Sprite system reference: [[adr/0005-pixel-pet-sprite-system]].
 
 ```bash
 # one-off build for the simulator

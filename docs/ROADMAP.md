@@ -1,161 +1,123 @@
 # Roadmap
 
-Phased delivery plan. Each phase has an **exit gate** — a concrete, verifiable
-condition that must be true before the next phase starts. The gates exist
-because the riskiest part of this project (BLE to a specific cheap device) is
-at the very bottom of the stack, so we prove it first and build upward.
-
-Do not work on a phase whose predecessor's gate is not met.
+> **Phases 0–5 complete as of 2026-05-24. Phase 6 in planning — see [[PHASE6-PLAN]].**
+>
+> This document is the project's phase history. Each phase records its goal and
+> exit gate. For the current system state, see [[SPEC]].
 
 ---
 
-## Phase 0 — Walking skeleton (hardware validation)
+## Phase 0 — Walking skeleton (hardware validation) ✅
 
 **Goal:** prove that we can light up the *physical* panel from a script at all.
-No project code yet — this is pure validation of the third-party library against
-our specific device.
+No project code — pure validation of the third-party library against our specific
+device.
 
-**Tasks**
-- Clone `markusressel/idotmatrix-api-client` somewhere outside this repo.
-- Install it (Python 3 + virtualenv + `poetry install`).
-- Grant the terminal the macOS Bluetooth permission
-  (System Settings → Privacy & Security → Bluetooth).
-- Run the library's `example.py` with `ScreenSize.SIZE_32x32`.
-- Resolve the macOS UUID-instead-of-MAC issue: discover the device by name
+**What was done:**
+- Cloned `markusressel/idotmatrix-api-client` outside this repo.
+- Installed it (Python 3 + virtualenv).
+- Granted the terminal the macOS Bluetooth permission.
+- Resolved the macOS UUID-instead-of-MAC issue: discovered the device by name
   (`IDM_32*32_9362`) rather than a hardcoded MAC address.
-- Make the panel show *anything* — text, a brightness change, a solid color.
+- Displayed a solid yellow color on the panel.
 
-**Exit gate:** the real panel visibly changes in response to a command run from
-the terminal. Write down in `docs/DEVELOPMENT.md` exactly which command worked
-and how the device was addressed (UUID handling).
-
-**If this gate fails:** STOP. The chosen library does not drive this specific
-firmware. Do not proceed. Options: try another fork, capture the protocol, or
-reconsider the device. Record the failure and findings as an ADR.
+**Exit gate met:** the real panel visibly changed in response to a command run
+from the terminal. See [[HISTORY]] for the exact commands and verified UUID.
 
 ---
 
-## Phase 1 — Sidecar as a service
+## Phase 1 — Sidecar as a service ✅
 
 **Goal:** wrap the proven Python path in a tiny local HTTP service so the rest
 of the system never has to think about Bluetooth again.
 
-**Tasks**
-- Create `sidecar/` (Python, FastAPI or Flask).
-- One endpoint: `POST /display` accepting a 32×32 PNG (see ADR-0002 for the
-  exact contract).
-- Endpoint decodes the PNG and pushes it to the panel via the library.
-- Add `GET /health` returning connection status.
-- Handle the connection lifecycle (connect once, reuse, reconnect on drop).
+**What was built:**
+- `sidecar/` (Python, FastAPI).
+- `POST /display` — accepts a 32×32 PNG, decodes it, pushes to the panel
+  (see [[adr/0002-http-boundary-png-contract]]).
+- `GET /health` — returns connection status.
+- Connection lifecycle: connect once, reuse, reconnect on drop.
 
-**Exit gate:** `curl -F file=@test32.png http://localhost:PORT/display` puts that
-image on the physical panel. Bluetooth is now a black box behind HTTP.
+**Exit gate met:** `curl -F file=@test32.png http://localhost:8765/display` put
+the image on the physical panel. Bluetooth is now a black box behind HTTP.
 
 ---
 
-## Phase 2 — TypeScript core (no hardware)
+## Phase 2 — TypeScript core (no hardware) ✅
 
 **Goal:** the weather→image pipeline in TS, tested entirely against PNG files on
-disk. The panel is not involved in this phase.
+disk. The panel is not involved.
 
-**Tasks**
-- Init Node.js + TypeScript project under `src/`.
-- `weather/` module: fetch current weather from Open-Meteo for the configured
-  coordinates (see ADR-0003). Cache; normalize to an internal `WeatherSnapshot`.
-- `render/` module: turn a `WeatherSnapshot` into a 32×32 RGB buffer, then a PNG
-  (see ADR-0004 for the rendering approach). Write the PNG to disk.
-- A dev script that fetches weather and dumps `out.png` so you can eyeball it.
+**What was built:**
+- `src/weather/index.ts` — fetches Open-Meteo, caches, maps to `WeatherSnapshot`
+  (see [[adr/0003-weather-data-source]]).
+- `src/render/index.ts` — pure function: `WeatherSnapshot → 32×32 PNG`
+  (see [[adr/0004-rendering-approach-32x32]]).
+- `src/dev.ts` — dev script that fetches weather and writes `out.png`.
 
-**Exit gate:** running the dev script produces a readable 32×32 weather PNG on
-disk (icon + temperature). Verified by looking at the file, not the panel.
+**Exit gate met:** running the dev script produced a readable 32×32 weather PNG
+on disk (icon + temperature). Verified by looking at the file, not the panel.
 
 ---
 
-## Phase 3 — Wire it together (MVP)
+## Phase 3 — Wire it together (MVP) ✅
 
-**Goal:** end-to-end automated loop. This is the actual MVP.
+**Goal:** end-to-end automated loop.
 
-**Tasks**
-- `transport/` module in TS: `POST` the rendered PNG to the sidecar's `/display`.
-- `scheduler/`: every N minutes → fetch weather → render → send.
-- A single entry point that starts the loop.
+**What was built:**
+- `src/transport/` — POSTs rendered PNG to the sidecar's `/display`.
+- `src/scheduler/` — every N minutes → fetch weather → render → send.
+- Single entry point that starts the loop.
 - Minimal config (coordinates, interval, sidecar URL).
 
-**Exit gate:** start the sidecar, start the TS app, and the panel updates with
-current weather on its own on the configured interval.
+**Exit gate met:** started the sidecar, started the TS app, panel updated with
+current weather automatically on the configured interval.
 
 ---
 
-## Phase 4 — Polish (complete 2026-05-24)
+## Phase 4 — Polish ✅ (complete 2026-05-24)
 
 - **No-flash rendering** — replaced `upload_image_file` (clears screen on every
-  frame) with `graffiti.set_pixels()` diff: only pixels that changed since the
-  last frame are sent over BLE. Typical update at steady weather: 0 pixels sent.
-  First frame after connect: ~215 pixels (full scene vs. unknown screen state).
-- **Dev tooling** — `npm run dev` starts sidecar + TS together with a single
-  command; both processes hot-reload on file save (uvicorn `--reload` for Python,
-  `tsx watch` for TypeScript); TS no longer crashes if sidecar isn't ready yet.
-- **Clean dependency** — `idotmatrix` library now installed directly from GitHub
-  at a pinned commit inside the sidecar venv; no external checkout or hardcoded
-  absolute paths required.
+  frame) with `graffiti.set_pixels()` diff: only changed pixels are sent over
+  BLE. At steady weather: 0 pixels sent.
+- **Dev tooling** — `npm run dev` starts sidecar + TS together; both hot-reload
+  on file save.
+- **Clean dependency** — `idotmatrix` library installed directly from GitHub at a
+  pinned commit inside the sidecar venv.
 - **BLE retry + backoff** — `_ensure_connected()` retries up to 4 times with
-  delays of 2 s, 5 s, 15 s. On write failure the client handle is reset so the
-  next `/display` request triggers a fresh reconnect automatically.
+  delays of 2 s, 5 s, 15 s. Auto-reconnects after write failures.
 - **`.env` config** — coordinates, interval, sidecar URL, and brightness values
-  are now read from a `.env` file via `process.loadEnvFile()`. Copy
-  `.env.example` and edit as needed; the file is gitignored.
-- **Background service** — `scripts/start.sh` + `scripts/com.idotmatrix.weather.plist`
-  run both processes as a macOS Login Item via launchd. Install with
-  `npm run service:install`; tail logs with `npm run service:logs`.
-
-**Deferred to future work**
-- ~~Animations / multi-frame display~~ — implemented in Phase 5.
+  read from `.env` via `process.loadEnvFile()`.
+- **Background service** — `scripts/start.sh` + launchd plist run both processes
+  as a macOS Login Item.
 
 ---
 
----
+## Phase 5 — Animations & pixel pet ✅ (complete 2026-05-24)
 
-## Phase 5 — Animations & pixel pet (complete 2026-05-24)
-
-- **Per-weather animations** — each of the 9 weather icon types now renders a
-  looping multi-frame animation instead of a static image. The main loop drives
-  a continuous `while(true)` cycle that advances frames and refreshes weather
-  every 10 minutes in the background.
-  - `clear-day` (8 frames): sun rays rotate clockwise as a sweeping cluster
-  - `clear-night` (6 frames): 4 stars twinkle independently
-  - `partly-cloudy` (8 frames): sun brightness pulses, cloud drifts ±1 px
-  - `cloudy` (8 frames): cloud sways ±1 px horizontally
-  - `fog` (8 frames): dashed fog lines scroll right
-  - `rain` (8 frames): 3 rain drops fall with staggered phases
-  - `heavy-rain` (8 frames): 6 drops, faster cycle
-  - `snow` (12 frames): 5 cross-shaped flakes fall with horizontal drift
-  - `thunder` (10 frames): dark cloud flashes bright on frames 6-7
+- **Per-weather animations** — each of the 9 weather icon types renders a looping
+  multi-frame animation instead of a static image.
+  - `clear-day` (8 frames), `clear-night` (6 frames), `partly-cloudy` (8 frames),
+    `cloudy` (8 frames), `fog` (8 frames), `rain` (8 frames), `heavy-rain` (8 frames),
+    `snow` (12 frames), `thunder` (10 frames).
 - **Pixel pet** — a 5-wide Bengal-coloured pixel cat overlaid on every frame.
-  Behaviours: walk (2-frame cycle, bounces at edges), sit (tail curled in sprite,
-  eye blink), lie (squishes down, tail wags), jump (4-frame arc), perch (arcs
-  up to temperature-text level, walks across it, arcs back down). Dims at night.
-  See ADR-0005 and ADR-0006 for sprite system and state-machine design.
+  Behaviours: walk, sit, lie, jump, perch. Dims at night.
+  See [[adr/0005-pixel-pet-sprite-system]] and [[adr/0006-perch-behavior-and-state-machine-lessons]].
 
 ---
 
 ## Phase 6 — Refactor, tests, browser simulator (planned)
 
-See `docs/PHASE6-PLAN.md` for the full plan. Key items:
+See [[PHASE6-PLAN]] for the full plan.
 
-- **Refactor** `advancePet` into per-behavior handler functions (cognitive
-  complexity currently ~55; target ≤15 per function).
-- **Unit tests** — Vitest covering all state-machine transitions and the
-  specific regression cases from Phase 5 (perch oscillation bug, etc.).
-- **Browser simulator** (`dev/simulator.html`) — renders the 32×32 scene on a
-  scaled canvas with weather/pet controls; no panel or BLE required for visual
-  iteration.
+---
 
-## Phase dependency at a glance
+## Phase dependency diagram
 
 ```
-Phase 0  ──gate──▶  Phase 1  ──gate──▶  Phase 2  ──gate──▶  Phase 3  ──▶  Phase 4
-(hardware)         (sidecar)          (TS render)         (MVP loop)    (polish)
+Phase 0  ──gate──▶  Phase 1  ──gate──▶  Phase 2  ──gate──▶  Phase 3  ──▶  Phase 4  ──▶  Phase 5
+(hardware)         (sidecar)          (TS render)         (MVP loop)    (polish)      (animations)
 ```
 
-The gate after Phase 0 is the project's make-or-break point. Everything else is
-ordinary software work once the panel responds.
+The gate after Phase 0 was the project's make-or-break point. Everything else
+was ordinary software work once the panel responded.

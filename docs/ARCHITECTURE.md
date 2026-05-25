@@ -1,11 +1,14 @@
 # Architecture
 
+> See [[SPEC]] for the one-page system overview and navigation table.
+
 ## Overview
 
 The system is split across a **language boundary** that exists for one reason:
 the iDotMatrix BLE protocol is undocumented and only exists as a
 reverse-engineered Python library. We keep that risk isolated in a small Python
 sidecar and do everything else in TypeScript.
+→ [[adr/0001-language-split-ts-python-sidecar]]
 
 ```
 ┌─────────────────────────── macOS host (awake, in BLE range) ───────────────────────────┐
@@ -65,6 +68,7 @@ sealed appliance: a PNG goes in, the panel updates.
 - **PNG as the wire format** (not raw pixels or a custom struct) because it is
   self-describing (dimensions baked in), trivially inspectable, and decouples the
   TS renderer's internals from the sidecar.
+  → [[adr/0002-http-boundary-png-contract]]
 
 ## Non-goals (for the MVP)
 

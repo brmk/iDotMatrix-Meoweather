@@ -100,3 +100,8 @@ false`), same as `sit`. The perch visual is clean without it.
 | **Tail at non-floor baselines** | When `baseY` is significantly above `PET_Y_WALK`, the `TAIL_Y` offsets land on the cat's body rows. Either recalculate offsets or suppress the tail. |
 | **Debug logging first** | For animation state-machine bugs, add `console.log` on every sub-phase transition before optimising. The log pattern (arc-up, arc-dn, arc-up, arc-dn…) made the oscillation immediately obvious. |
 | **`petStepCounter` accumulates during arcs** | The step counter keeps incrementing during the arc-up phase. Reset it (`petStepCounter = 0`) at the end of each arc frame so the first walk step fires on a predictable schedule. |
+
+## See also
+
+- [[../PHASE6-PLAN]] — Part B unit tests cover every regression case documented here
+- [[0005-pixel-pet-sprite-system]] — sprite system design that this behavior builds on

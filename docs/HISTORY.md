@@ -1,8 +1,9 @@
-# Development
+# Build History
 
-How to run, test, and debug this locally. Fill in the `TODO` markers as each
-phase is completed — this file is also the project's running log of what
-actually worked.
+> **Archived build log.** Records what was implemented and verified in each phase.
+> For current workflow, see [[RUNBOOK]].
+
+---
 
 ## Prerequisites
 
@@ -16,6 +17,8 @@ actually worked.
 System Settings → Privacy & Security → Bluetooth → enable for the terminal app
 you use (Terminal, iTerm, VS Code, etc.). Without this, BLE scans silently
 return nothing and the device appears "not found".
+
+---
 
 ## Phase 0 — validating the panel (no project code)
 
@@ -49,6 +52,8 @@ differ on any other machine.
 The library's built-in `discover_devices()` in `connection_manager.py` already
 filters by `startswith("IDM-")`, which matches our device correctly.
 
+---
+
 ## Phase 1 — running the sidecar
 
 ```bash
@@ -79,6 +84,8 @@ curl -F file=@/tmp/test32.png http://localhost:8765/display
 ```
 
 The `/display` endpoint rejects images that are not exactly 32×32.
+
+---
 
 ## Phase 2 — rendering without hardware
 
@@ -113,10 +120,11 @@ The panel is not involved in this phase.
 The dev script output confirmed live weather fetch (code=1, 12°C, night)
 and produced a valid 32×32 RGB PNG. Gate passed.
 
+---
+
 ## Phase 3 — full loop
 
 ```bash
-# Everything at once (recommended for dev)
 npm run dev
 ```
 
@@ -125,35 +133,10 @@ with colour-prefixed output (`[sidecar]` / `[ts]`). Both processes hot-reload
 on file save. The TS app tolerates a slow sidecar start — BLE scanning takes
 ~15 s on first connect.
 
-For production (two separate terminals or a process manager):
-
-```bash
-# Terminal 1
-npm run start:sidecar
-
-# Terminal 2
-npm start
-```
-
-Config is read from a `.env` file in the project root (gitignored). Copy the
-example and edit:
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Default | Description |
-|---|---|---|
-| `LATITUDE` / `LONGITUDE` | 49.5535 / 25.5948 | Your coordinates |
-| `INTERVAL_SECONDS` | 600 | How often to fetch + render + push |
-| `SIDECAR_URL` | `http://127.0.0.1:8765` | Local sidecar address |
-| `DAY_BRIGHTNESS` | 80 | Panel brightness when `isDay = true` (0–100) |
-| `NIGHT_BRIGHTNESS` | 25 | Panel brightness at night (0–100) |
-
-All values have hard-coded fallbacks so `.env` is optional.
-
 **What was verified (2026-05-24):** sidecar running, `npm start` launched, panel
 updated with live weather automatically on every interval tick. Gate passed.
+
+---
 
 ## Phase 4 — polish
 
@@ -178,35 +161,6 @@ before giving up. If a BLE write fails mid-operation the client handle is reset
 so the next request triggers a fresh reconnect automatically. The sidecar never
 needs a manual restart after a transient BLE drop.
 
-### `.env` config
-
-```bash
-cp .env.example .env   # once; edit your coordinates if needed
-```
-
-See the Config table in the Phase 3 section above for all variables.
-
-### Run as a background service (Login Item)
-
-```bash
-# Install (symlinks plist into ~/Library/LaunchAgents and loads it)
-npm run service:install
-
-# Watch live output
-npm run service:logs
-
-# Remove the service
-npm run service:uninstall
-```
-
-The plist lives at `scripts/com.idotmatrix.weather.plist`. launchd keeps the
-service alive and restarts it (with a 30 s throttle) if it crashes. Logs go to
-`logs/out.log` and `logs/err.log`.
-
-**Note:** the terminal/process running the service still needs the macOS
-Bluetooth permission (System Settings → Privacy & Security → Bluetooth). Grant
-it to `/bin/bash` or to the terminal you used to run `npm run service:install`.
-
 ### `idotmatrix` dependency
 
 `sidecar/requirements.txt` installs the library from GitHub at a pinned commit:
@@ -216,6 +170,8 @@ idotmatrix @ git+https://github.com/markusressel/idotmatrix-api-client.git@fbdbd
 ```
 
 No external checkout, no absolute paths, works on any machine.
+
+---
 
 ## Phase 5 — animations and pixel pet
 
@@ -266,25 +222,3 @@ hits zero, then rolls:
 - 20 % → lie (50–120 frames)
 - 15 % → jump (8 frames)
 - 35 % → keep walking
-
-To tune the frequency or duration: adjust the roll thresholds or `rnd()` ranges
-in `advancePet`.
-
-## Debugging guide
-
-- **Panel does nothing, no error:** almost always the macOS Bluetooth
-  permission, or the Mac is out of range / asleep.
-- **"Device not found":** confirm the panel isn't already connected to the phone
-  app (BLE allows one central at a time). Disconnect the app first.
-- **Connects then drops:** expected occasionally over BLE; Phase 4 adds retry.
-  For MVP, just restart the sidecar.
-- **Image looks wrong on panel but `out.png` looks fine:** the problem is in the
-  sidecar's PNG→panel step, not the renderer. Keep the two concerns separate.
-- **Image looks wrong in `out.png` too:** it's the renderer; fix it without the
-  device attached.
-
-## Conventions
-
-- Keep all Bluetooth code in `sidecar/`. TypeScript never imports a BLE library.
-- New non-obvious decisions get an ADR in `docs/adr/`, not a code comment.
-- Pin the upstream Python library version once Phase 0 passes.
