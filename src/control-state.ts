@@ -1,10 +1,22 @@
 import type { PetContext } from './pet/index.js';
 import type { PetBehavior, PetState } from './render/pet/types.js';
 import type { WeatherSnapshot } from './weather/index.js';
+import { config } from './config.js';
 
 export interface BehaviorOverride {
   behavior: PetBehavior;
   dur: number;
+}
+
+export interface BrightnessConfig {
+  day: number;
+  night: number;
+}
+
+/** Hour range [from, to) that forces night mode, wrapping midnight if from > to. */
+export interface NightHours {
+  from: number;
+  to: number;
 }
 
 export interface ControlState {
@@ -15,6 +27,8 @@ export interface ControlState {
   behaviorOverride: BehaviorOverride | null;
   weatherOverride: WeatherSnapshot | null;
   weatherDirty: boolean;
+  brightness: BrightnessConfig;
+  nightHours: NightHours | null;
   logLines: string[];
   logSubs: Set<(line: string) => void>;
   currentFrame: string | null;
@@ -29,6 +43,8 @@ export const controlState: ControlState = {
   behaviorOverride: null,
   weatherOverride: null,
   weatherDirty: false,
+  brightness: { day: config.dayBrightness, night: config.nightBrightness },
+  nightHours: null,
   logLines: [],
   logSubs: new Set(),
   currentFrame: null,

@@ -4,6 +4,7 @@ import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { controlState } from './control-state.js';
+import type { BrightnessConfig, NightHours } from './control-state.js';
 import type { PetBehavior } from './render/pet/types.js';
 import type { WeatherSnapshot } from './weather/index.js';
 
@@ -89,6 +90,8 @@ function currentHealth() {
     humidity: snap?.humidity ?? null,
     windSpeed: snap?.windSpeed ?? null,
     weatherOverride: controlState.weatherOverride !== null,
+    brightness: controlState.brightness,
+    nightHours: controlState.nightHours,
   };
 }
 
@@ -162,6 +165,44 @@ async function routeControlBehavior(req: IncomingMessage, res: ServerResponse): 
   }
 }
 
+async function routeControlBrightness(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readBody(req);
+  try {
+    const { day, night } = JSON.parse(body) as BrightnessConfig;
+    if (typeof day !== 'number' || typeof night !== 'number') {
+      json(res, 400, { error: 'day and night brightness required' });
+      return;
+    }
+    controlState.brightness = {
+      day: Math.max(0, Math.min(100, Math.round(day))),
+      night: Math.max(0, Math.min(100, Math.round(night))),
+    };
+    json(res, 200, { ok: true });
+  } catch {
+    json(res, 400, { error: 'invalid JSON' });
+  }
+}
+
+async function routeControlNightHours(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readBody(req);
+  try {
+    const data = JSON.parse(body) as NightHours | null;
+    if (data === null) {
+      controlState.nightHours = null;
+    } else {
+      const { from, to } = data;
+      if (typeof from !== 'number' || typeof to !== 'number') {
+        json(res, 400, { error: 'from and to hours required' });
+        return;
+      }
+      controlState.nightHours = { from: Math.round(from) % 24, to: Math.round(to) % 24 };
+    }
+    json(res, 200, { ok: true });
+  } catch {
+    json(res, 400, { error: 'invalid JSON' });
+  }
+}
+
 async function routeControlWeather(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const body = await readBody(req);
   try {
@@ -194,6 +235,8 @@ function dispatchGet(req: IncomingMessage, res: ServerResponse, path: string): v
 
 async function dispatchPost(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
   if (path === '/api/control/behavior') return routeControlBehavior(req, res);
+  if (path === '/api/control/brightness') return routeControlBrightness(req, res);
+  if (path === '/api/control/night-hours') return routeControlNightHours(req, res);
   if (path === '/api/control/weather') return routeControlWeather(req, res);
   if (path === '/api/control/weather/clear') {
     controlState.weatherOverride = null;

@@ -46,6 +46,16 @@ function pushFrame(b64: string): void {
   }
 }
 
+function resolveIsDay(apiIsDay: boolean): boolean {
+  const nh = controlState.nightHours;
+  if (!nh) return apiIsDay;
+  const hour = new Date().getHours();
+  const isNightHour = nh.from <= nh.to
+    ? hour >= nh.from && hour < nh.to
+    : hour >= nh.from || hour < nh.to;
+  return !isNightHour;
+}
+
 function applyBehaviorOverride(): void {
   if (!controlState.behaviorOverride) return;
   const { behavior, dur } = controlState.behaviorOverride;
@@ -95,9 +105,10 @@ async function run(): Promise<void> {
 
     const effective = controlState.weatherOverride ?? snapshot;
     const frame = frames[frameIdx % frames.length];
-    const brightness = effective.isDay ? config.dayBrightness : config.nightBrightness;
+    const isDay = resolveIsDay(effective.isDay);
+    const brightness = isDay ? controlState.brightness.day : controlState.brightness.night;
 
-    pet.isDay = effective.isDay;
+    pet.isDay = isDay;
     advancePet(pet, petCtx);
     applyBehaviorOverride();
     controlState.tick++;

@@ -44,6 +44,8 @@ interface LiveState {
   humidity: number | null;
   windSpeed: number | null;
   weatherOverride: boolean;
+  brightness: { day: number; night: number };
+  nightHours: { from: number; to: number } | null;
 }
 
 const ctrl: CSSProperties = {
@@ -74,6 +76,22 @@ async function postWeather(iconVal: string, temp: number, night: boolean): Promi
 
 async function clearWeather(): Promise<void> {
   await fetch('/api/control/weather/clear', { method: 'POST' });
+}
+
+async function postBrightness(day: number, night: number): Promise<void> {
+  await fetch('/api/control/brightness', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ day, night }),
+  });
+}
+
+async function postNightHours(from: number | null, to: number | null): Promise<void> {
+  await fetch('/api/control/night-hours', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(from === null ? null : { from, to }),
+  });
 }
 
 export default function Simulator() {
@@ -109,6 +127,13 @@ export default function Simulator() {
   const [remote, setRemote] = useState(false);
   const [liveState, setLiveState] = useState<LiveState | null>(null);
 
+  const [dayBrightness, setDayBrightness] = useState(80);
+  const [nightBrightness, setNightBrightness] = useState(25);
+  const [nightHoursEnabled, setNightHoursEnabled] = useState(false);
+  const [nightFrom, setNightFrom] = useState(22);
+  const [nightTo, setNightTo] = useState(7);
+  const brightnessInitRef = useRef(false);
+
   // Keep latest control values accessible inside the animation loop without restarts.
   const liveRef = useRef({ iconVal, temp, night, speed });
   useEffect(() => {
@@ -138,6 +163,19 @@ export default function Simulator() {
     };
     return () => es.close();
   }, [remote]);
+
+  // Initialise brightness + night-hours controls from server state on first connect.
+  useEffect(() => {
+    if (!liveState || brightnessInitRef.current) return;
+    brightnessInitRef.current = true;
+    setDayBrightness(liveState.brightness.day);
+    setNightBrightness(liveState.brightness.night);
+    if (liveState.nightHours) {
+      setNightHoursEnabled(true);
+      setNightFrom(liveState.nightHours.from);
+      setNightTo(liveState.nightHours.to);
+    }
+  }, [liveState]);
 
   // Subscribe to pixel-perfect frame stream when remote — replaces rAF canvas.
   useEffect(() => {
@@ -343,6 +381,90 @@ export default function Simulator() {
               style={{ width: 110 }}
             />
           </label>
+        )}
+
+        {remote && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#888', minWidth: 200 }}>
+            <span style={{ color: '#555', letterSpacing: 1, fontSize: 10 }}>DISPLAY</span>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              Day brightness {dayBrightness}%
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={dayBrightness}
+                style={{ width: '100%' }}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setDayBrightness(v);
+                  void postBrightness(v, nightBrightness);
+                }}
+              />
+            </label>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              Night brightness {nightBrightness}%
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={nightBrightness}
+                style={{ width: '100%' }}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setNightBrightness(v);
+                  void postBrightness(dayBrightness, v);
+                }}
+              />
+            </label>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  id="night-hours-toggle"
+                  type="checkbox"
+                  checked={nightHoursEnabled}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setNightHoursEnabled(on);
+                    void postNightHours(on ? nightFrom : null, on ? nightTo : null);
+                  }}
+                />
+                <label htmlFor="night-hours-toggle">Night hours override</label>
+              </div>
+              {nightHoursEnabled && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 20 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={nightFrom}
+                    style={{ ...ctrl, width: 48 }}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setNightFrom(v);
+                      void postNightHours(v, nightTo);
+                    }}
+                  />
+                  <span>–</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={nightTo}
+                    style={{ ...ctrl, width: 48 }}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setNightTo(v);
+                      void postNightHours(nightFrom, v);
+                    }}
+                  />
+                  <span style={{ color: '#555', fontSize: 10 }}>h</span>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
