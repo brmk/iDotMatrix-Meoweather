@@ -1,4 +1,5 @@
-import { set } from './canvas.js';
+import { DISPLAY_WIDTH, set } from './canvas.js';
+import type { Color } from './types.js';
 
 const FONT: Record<string, number[]> = {
   '0': [0b111, 0b101, 0b101, 0b101, 0b111],
@@ -16,21 +17,24 @@ const FONT: Record<string, number[]> = {
   C: [0b111, 0b100, 0b100, 0b100, 0b111],
 };
 
-function drawChar(buf: Uint8Array, ch: string, x: number, y: number, r: number, g: number, b: number): void {
+const GLYPH_WIDTH = 3;
+const GLYPH_SPACING = 1;
+
+function drawChar(buf: Uint8Array, ch: string, x: number, y: number, color: Color): void {
   const glyph = FONT[ch];
   if (!glyph) return;
   for (let row = 0; row < 5; row++) {
-    for (let col = 0; col < 3; col++) {
-      if (glyph[row]! & (0b100 >> col)) set(buf, x + col, y + row, r, g, b);
+    for (let col = 0; col < GLYPH_WIDTH; col++) {
+      if (glyph[row]! & (0b100 >> col)) set(buf, x + col, y + row, color);
     }
   }
 }
 
-export function drawText(buf: Uint8Array, text: string, y: number, r: number, g: number, b: number): void {
-  const totalW = text.length * 4 - 1;
-  let x = Math.floor((32 - totalW) / 2);
+export function drawText(buf: Uint8Array, text: string, y: number, color: Color): void {
+  const totalW = text.length * (GLYPH_WIDTH + GLYPH_SPACING) - GLYPH_SPACING;
+  let x = Math.floor((DISPLAY_WIDTH - totalW) / 2);
   for (const ch of text) {
-    drawChar(buf, ch, x, y, r, g, b);
-    x += 4;
+    drawChar(buf, ch, x, y, color);
+    x += GLYPH_WIDTH + GLYPH_SPACING;
   }
 }

@@ -6,9 +6,8 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM"],
     "strict": true,
-    "baseUrl": "..",
     "paths": {
-      "@src/*": ["src/*"]
+      "@src/*": ["../src/*"]
     }
   },
   "include": [

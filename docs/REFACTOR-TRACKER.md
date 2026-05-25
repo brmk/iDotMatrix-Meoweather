@@ -5,7 +5,7 @@
 > complete, delete this document and migrate the durable conclusions into
 > `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, ADRs, and module-level docs.
 
-**Status:** Planned  
+**Status:** In progress  
 **Owner:** Shared across sessions / agents  
 **Last updated:** 2026-05-25  
 **Supersedes:** none  
@@ -138,17 +138,17 @@ src/render/
 
 ## Phase 1 — Baseline types and render contracts
 
-**Status:** planned  
+**Status:** done  
 **Goal:** establish stable low-level types and reduce accidental API drift.
 
 ### Tasks
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| 1.1 | planned | Add shared render types (`Color`, shared frame/meta types) | Render modules consume shared types instead of ad hoc tuples and repeated shapes |
-| 1.2 | planned | Normalize low-level canvas APIs where this improves readability | `canvas.ts` and dependent modules use a consistent parameter model |
-| 1.3 | planned | Remove hardcoded canvas size usage from text/layout code | Text rendering imports shared dimensions instead of duplicating `32` |
-| 1.4 | planned | Centralize foundational render constants | Core dimensions / layout constants have one named home |
+| 1.1 | done | Add shared render types (`Color`, shared frame/meta types) | Render modules consume shared types instead of ad hoc tuples and repeated shapes |
+| 1.2 | done | Normalize low-level canvas APIs where this improves readability | `canvas.ts` and dependent modules use a consistent parameter model |
+| 1.3 | done | Remove hardcoded canvas size usage from text/layout code | Text rendering imports shared dimensions instead of duplicating `32` |
+| 1.4 | done | Centralize foundational render constants | Core dimensions / layout constants have one named home |
 
 ### Exit criteria
 
@@ -160,17 +160,17 @@ src/render/
 
 ## Phase 2 — Scene pipeline deduplication
 
-**Status:** planned  
+**Status:** done  
 **Goal:** make one frame-building path the single source of truth.
 
 ### Tasks
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| 2.1 | planned | Extract `formatTemperature()` into a scene formatting helper | Temperature formatting exists in one place and is reused |
-| 2.2 | planned | Introduce `renderFrame(snapshot, frame)` | Static and animated rendering share the same composition path |
-| 2.3 | planned | Move tinting and scene helpers into focused modules | Scene orchestration is split by responsibility, not by convenience |
-| 2.4 | planned | Remove duplicated logic between `render()` and `renderAnimation()` | Both call shared helpers with no duplicated layout or tint logic |
+| 2.1 | done | Extract `formatTemperature()` into a scene formatting helper | Temperature formatting exists in one place and is reused |
+| 2.2 | done | Introduce `renderFrame(snapshot, frame)` | Static and animated rendering share the same composition path |
+| 2.3 | done | Move tinting and scene helpers into focused modules | Scene orchestration is split by responsibility, not by convenience |
+| 2.4 | done | Remove duplicated logic between `render()` and `renderAnimation()` | Both call shared helpers with no duplicated layout or tint logic |
 
 ### Exit criteria
 
@@ -242,17 +242,17 @@ src/render/
 
 ## Phase 6 — Automated test expansion
 
-**Status:** planned  
+**Status:** in_progress  
 **Goal:** achieve strong coverage on pure logic and meaningful regression protection on rendering.
 
 ### Tasks
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| 6.1 | planned | Add low-level tests for `canvas.ts` | Bounds and primitive drawing behavior are covered |
-| 6.2 | planned | Add focused tests for text rendering helpers | Glyph, measurement, and alignment logic are covered |
+| 6.1 | done | Add low-level tests for `canvas.ts` | Bounds and primitive drawing behavior are covered |
+| 6.2 | in_progress | Add focused tests for text rendering helpers | Glyph, measurement, and alignment logic are covered |
 | 6.3 | planned | Add table-driven tests for weather-code mapping and icon registry integrity | Mapping and registry drift become hard to miss |
-| 6.4 | planned | Add scene tests for frame rendering and tint behavior | Static vs animated render composition is protected |
+| 6.4 | done | Add scene tests for frame rendering and tint behavior | Static vs animated render composition is protected |
 | 6.5 | planned | Extend pet tests beyond state advancement where useful | Sprite parsing and draw invariants are covered |
 | 6.6 | planned | Add visual regression or golden-style render tests for representative scenes | Key render outputs are protected against silent drift |
 | 6.7 | planned | Add coverage thresholds to the test setup / CI path | Coverage target is enforced, not aspirational |
@@ -325,6 +325,12 @@ If one of these is skipped, the session log should say why.
   the tracker for this new refactor cycle.
 - This tracker is temporary and should be deleted after the work is folded into
   stable project documentation.
+- Render modules now share `Color` and `AnimationFrame` contracts plus named
+  display-dimension constants; future refactors should extend these rather than
+  reintroducing tuple aliases or duplicated `32x32` literals.
+- Scene composition now flows through dedicated `scene/format`, `scene/frame`,
+  and `scene/tint` modules, with `src/render/scene.ts` retained as a
+  compatibility re-export during the refactor program.
 
 ---
 
@@ -333,6 +339,8 @@ If one of these is skipped, the session log should say why.
 | Date | Author | Summary |
 |---|---|---|
 | 2026-05-25 | Codex | Created this temporary tracker for the next refactor/test-improvement cycle. No code changes yet; all phases start as `planned`. |
+| 2026-05-25 | Codex | Completed Phase 1 by introducing shared render types/constants, normalizing low-level canvas color APIs, and removing duplicated canvas-size literals from render/text paths. Added baseline `canvas` and `font` tests; verification passed via `npm run format`, `npm run lint`, `npm run typecheck`, and `npm test`. |
+| 2026-05-25 | Codex | Completed Phase 2 by extracting scene formatting/tint/frame helpers into focused modules and moving static plus animated rendering onto one shared `renderFrame()` composition path. Added scene tests for temperature formatting, shared composition, animation metadata, and night tint behavior; verification passed via `npm run format`, `npm run lint`, `npm run typecheck`, and `npm test`. |
 
 ---
 

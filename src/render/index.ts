@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import type { WeatherSnapshot } from '../weather/index.js';
+import { DISPLAY_HEIGHT, DISPLAY_WIDTH, RGB_CHANNELS } from './canvas.js';
 import { render } from './core.js';
 
 export * from './core.js';
@@ -28,16 +29,13 @@ function pngChunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([lenBuf, typeBytes, data, crcBuf]);
 }
 
-const W = 32;
-const H = 32;
-
 function rgbToPng(rgb: Uint8Array): Buffer {
-  const raw = Buffer.alloc(H * (1 + W * 3));
-  for (let y = 0; y < H; y++) {
-    raw[y * (1 + W * 3)] = 0;
-    for (let x = 0; x < W; x++) {
-      const src = (y * W + x) * 3;
-      const dst = y * (1 + W * 3) + 1 + x * 3;
+  const raw = Buffer.alloc(DISPLAY_HEIGHT * (1 + DISPLAY_WIDTH * RGB_CHANNELS));
+  for (let y = 0; y < DISPLAY_HEIGHT; y++) {
+    raw[y * (1 + DISPLAY_WIDTH * RGB_CHANNELS)] = 0;
+    for (let x = 0; x < DISPLAY_WIDTH; x++) {
+      const src = (y * DISPLAY_WIDTH + x) * RGB_CHANNELS;
+      const dst = y * (1 + DISPLAY_WIDTH * RGB_CHANNELS) + 1 + x * RGB_CHANNELS;
       raw[dst] = rgb[src]!;
       raw[dst + 1] = rgb[src + 1]!;
       raw[dst + 2] = rgb[src + 2]!;
@@ -45,8 +43,8 @@ function rgbToPng(rgb: Uint8Array): Buffer {
   }
 
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(W, 0);
-  ihdr.writeUInt32BE(H, 4);
+  ihdr.writeUInt32BE(DISPLAY_WIDTH, 0);
+  ihdr.writeUInt32BE(DISPLAY_HEIGHT, 4);
   ihdr[8] = 8;
   ihdr[9] = 2;
 

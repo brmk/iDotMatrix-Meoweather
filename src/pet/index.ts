@@ -1,3 +1,4 @@
+import { DISPLAY_WIDTH } from '../render/canvas.js';
 import type { PetBehavior, PetState } from '../render/pet-draw.js';
 import { PET_WIDTH, PET_Y_PERCH, PET_Y_WALK } from '../render/pet-draw.js';
 import { PET_BEHAVIOR_CONFIG, type BehaviorPeriodConfig } from './config.js';
@@ -61,8 +62,8 @@ export function advanceWalk(state: PetState, ctx: PetContext, rand = Math.random
   }
 
   state.x += state.facingRight ? 1 : -1;
-  if (state.x >= 32 - PET_WIDTH) {
-    state.x = 32 - PET_WIDTH;
+  if (state.x >= DISPLAY_WIDTH - PET_WIDTH) {
+    state.x = DISPLAY_WIDTH - PET_WIDTH;
     state.facingRight = false;
   }
   if (state.x <= 0) {

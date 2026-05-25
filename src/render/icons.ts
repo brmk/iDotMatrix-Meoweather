@@ -1,4 +1,5 @@
 import { fillCircle, fillRect, set } from './canvas.js';
+import type { Color } from './types.js';
 
 export type IconType = 'clear-day' | 'clear-night' | 'partly-cloudy' | 'cloudy' | 'fog' | 'rain' | 'heavy-rain' | 'snow' | 'thunder';
 
@@ -13,14 +14,15 @@ const CLOUD_Y = 1;
 const PRECIP_Y = 11;
 
 function drawCloud(buf: Uint8Array, yBase: number, r: number, g: number, b: number, xOff = 0): void {
-  fillCircle(buf, 10 + xOff, yBase + 4, 4, r, g, b);
-  fillCircle(buf, 16 + xOff, yBase + 2, 5, r, g, b);
-  fillCircle(buf, 22 + xOff, yBase + 4, 4, r, g, b);
-  fillRect(buf, 6 + xOff, yBase + 5, 26 + xOff, yBase + 8, r, g, b);
+  const color: Color = [r, g, b];
+  fillCircle(buf, 10 + xOff, yBase + 4, 4, color);
+  fillCircle(buf, 16 + xOff, yBase + 2, 5, color);
+  fillCircle(buf, 22 + xOff, yBase + 4, 4, color);
+  fillRect(buf, 6 + xOff, yBase + 5, 26 + xOff, yBase + 8, color);
 }
 
 function drawAnimatedSun(buf: Uint8Array, cx: number, cy: number, frame: number): void {
-  fillCircle(buf, cx, cy, 5, 255, 200, 0);
+  fillCircle(buf, cx, cy, 5, [255, 200, 0]);
   const dirs: Array<[number, number]> = [
     [0, -1],
     [1, -1],
@@ -35,16 +37,16 @@ function drawAnimatedSun(buf: Uint8Array, cx: number, cy: number, frame: number)
   for (let i = 0; i < dirs.length; i++) {
     const [dx, dy] = dirs[i]!;
     const len = Math.sqrt(dx * dx + dy * dy);
-    set(buf, Math.round(cx + (dx * 7) / len), Math.round(cy + (dy * 7) / len), 255, 220, 50);
+    set(buf, Math.round(cx + (dx * 7) / len), Math.round(cy + (dy * 7) / len), [255, 220, 50]);
     if (active.has(i)) {
-      set(buf, Math.round(cx + (dx * 9) / len), Math.round(cy + (dy * 9) / len), 255, 240, 100);
+      set(buf, Math.round(cx + (dx * 9) / len), Math.round(cy + (dy * 9) / len), [255, 240, 100]);
     }
   }
 }
 
 function drawAnimatedMoon(buf: Uint8Array, cx: number, cy: number, frame: number): void {
-  fillCircle(buf, cx, cy, 6, 220, 230, 255);
-  fillCircle(buf, cx + 3, cy - 2, 5, 0, 0, 0);
+  fillCircle(buf, cx, cy, 6, [220, 230, 255]);
+  fillCircle(buf, cx + 3, cy - 2, 5, [0, 0, 0]);
   const stars: Array<[number, number, number]> = [
     [cx + 10, cy - 4, 0],
     [cx - 9, cy - 2, 2],
@@ -54,7 +56,7 @@ function drawAnimatedMoon(buf: Uint8Array, cx: number, cy: number, frame: number
   for (const [sx, sy, phase] of stars) {
     const state = (frame + phase) % 6;
     const [r, g, b] = state < 2 ? [210, 220, 255] : state < 4 ? [90, 95, 120] : [30, 32, 45];
-    set(buf, sx, sy, r, g, b);
+    set(buf, sx, sy, [r, g, b]);
   }
 }
 
@@ -64,17 +66,17 @@ function drawAnimatedPartlyCloudy(buf: Uint8Array, frame: number): void {
   const sr = lv;
   const sg = Math.round((lv * 200) / 255);
   const sb = 0;
-  fillCircle(buf, 9, 6, 4, sr, sg, sb);
-  set(buf, 9, 0, sr, sg + 20, sb);
-  set(buf, 9, 1, sr, sg + 20, sb);
-  set(buf, 3, 6, sr, sg + 20, sb);
-  set(buf, 4, 6, sr, sg + 20, sb);
+  fillCircle(buf, 9, 6, 4, [sr, sg, sb]);
+  set(buf, 9, 0, [sr, sg + 20, sb]);
+  set(buf, 9, 1, [sr, sg + 20, sb]);
+  set(buf, 3, 6, [sr, sg + 20, sb]);
+  set(buf, 4, 6, [sr, sg + 20, sb]);
   const xOff = frame >= 4 ? 1 : 0;
   const [cr, cg, cb] = [160, 165, 175];
-  fillCircle(buf, 14 + xOff, 11, 3, cr, cg, cb);
-  fillCircle(buf, 19 + xOff, 9, 4, cr, cg, cb);
-  fillCircle(buf, 24 + xOff, 11, 3, cr, cg, cb);
-  fillRect(buf, 11 + xOff, 12, 27 + xOff, 15, cr, cg, cb);
+  fillCircle(buf, 14 + xOff, 11, 3, [cr, cg, cb]);
+  fillCircle(buf, 19 + xOff, 9, 4, [cr, cg, cb]);
+  fillCircle(buf, 24 + xOff, 11, 3, [cr, cg, cb]);
+  fillRect(buf, 11 + xOff, 12, 27 + xOff, 15, [cr, cg, cb]);
 }
 
 const CLOUD_SWAY = [0, 0, 1, 1, 0, 0, -1, -1];
@@ -95,7 +97,7 @@ function drawAnimatedFog(buf: Uint8Array, frame: number): void {
   for (const line of lines) {
     for (let i = 0; i < line.len; i++) {
       if ((i + frame + line.y) % 4 < 3) {
-        set(buf, line.xStart + i, line.y, 150, 150, 160);
+        set(buf, line.xStart + i, line.y, [150, 150, 160]);
       }
     }
   }
@@ -120,8 +122,8 @@ function drawAnimatedRain(buf: Uint8Array, frame: number, heavy: boolean): void 
   const areaH = 9;
   for (const { x, phase } of tracks) {
     const y = PRECIP_Y + ((frame + phase) % areaH);
-    set(buf, x, y, 80, 140, 255);
-    if (y + 1 < PRECIP_Y + areaH) set(buf, x, y + 1, 60, 110, 220);
+    set(buf, x, y, [80, 140, 255]);
+    if (y + 1 < PRECIP_Y + areaH) set(buf, x, y + 1, [60, 110, 220]);
   }
 }
 
@@ -142,11 +144,11 @@ function drawAnimatedSnow(buf: Uint8Array, frame: number): void {
     const yPos = PRECIP_Y + ((frame + phase) % areaH);
     const xDrift = SNOW_X_DRIFT[(frame + phase) % cycle]!;
     const fx = baseX + xDrift;
-    set(buf, fx, yPos, 200, 220, 255);
-    set(buf, fx - 1, yPos, 150, 170, 210);
-    set(buf, fx + 1, yPos, 150, 170, 210);
-    set(buf, fx, yPos - 1, 150, 170, 210);
-    set(buf, fx, yPos + 1, 150, 170, 210);
+    set(buf, fx, yPos, [200, 220, 255]);
+    set(buf, fx - 1, yPos, [150, 170, 210]);
+    set(buf, fx + 1, yPos, [150, 170, 210]);
+    set(buf, fx, yPos - 1, [150, 170, 210]);
+    set(buf, fx, yPos + 1, [150, 170, 210]);
   }
 }
 
@@ -169,7 +171,7 @@ function drawAnimatedThunder(buf: Uint8Array, frame: number): void {
     ];
     const [lr, lg, lb] = frame === 6 ? [255, 255, 50] : [200, 200, 20];
     for (const [x, dy] of boltPixels) {
-      set(buf, x!, PRECIP_Y + dy!, lr, lg, lb);
+      set(buf, x!, PRECIP_Y + dy!, [lr, lg, lb]);
     }
   }
 }

@@ -1,12 +1,13 @@
 import { RAW_SPRITES, type SpriteKey } from '../sprites.js';
 import { set } from './canvas.js';
+import type { Color } from './types.js';
 
 export const PET_WIDTH = 5;
 export const PET_Y_WALK = 28;
 export const PET_Y_PERCH = 17;
 
 type Pixel = [number, number, string];
-type PetColor = Record<string, [number, number, number]>;
+type PetColor = Record<string, Color>;
 
 export const PET_DAY: PetColor = {
   o: [255, 155, 30],
@@ -40,7 +41,7 @@ export function blit(buf: Uint8Array, pixels: Pixel[], x: number, y: number, mir
   for (const [dx, dy, ch] of pixels) {
     const px = mirror ? x + (PET_WIDTH - 1 - dx) : x + dx;
     const c = colors[ch];
-    if (c) set(buf, px, y + dy, c[0], c[1], c[2]);
+    if (c) set(buf, px, y + dy, c);
   }
 }
 
@@ -126,9 +127,10 @@ function drawDream(buf: Uint8Array, s: PetState): void {
   const zX = s.x + 2;
   const phase = s.behaviorFrame % 12;
   const [r, g, b] = [160, 160, 255] as const;
-  if (phase < 3) set(buf, zX, PET_Y_WALK - 2, r, g, b);
-  if (phase >= 3 && phase < 6) set(buf, zX + 1, PET_Y_WALK - 4, r, g, b);
-  if (phase >= 6 && phase < 9) set(buf, zX + 2, PET_Y_WALK - 6, r, g, b);
+  const color: Color = [r, g, b];
+  if (phase < 3) set(buf, zX, PET_Y_WALK - 2, color);
+  if (phase >= 3 && phase < 6) set(buf, zX + 1, PET_Y_WALK - 4, color);
+  if (phase >= 6 && phase < 9) set(buf, zX + 2, PET_Y_WALK - 6, color);
 }
 
 function drawPetCore(buf: Uint8Array, s: PetState, sp: ParsedSprites): void {
@@ -141,7 +143,7 @@ function drawPetCore(buf: Uint8Array, s: PetState, sp: ParsedSprites): void {
     const tailX = s.facingRight ? s.x : s.x + PET_WIDTH - 1;
     const ty = TAIL_Y[s.tailPhase]!;
     const tc = colors['s']!;
-    set(buf, tailX, baseY + ty, tc[0], tc[1], tc[2]);
+    set(buf, tailX, baseY + ty, tc);
   }
 }
 
