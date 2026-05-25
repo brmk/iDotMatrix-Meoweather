@@ -1,0 +1,35 @@
+You are closing out a coding session for the led-matrix-idotmatrix project.
+
+Run these steps in order:
+
+## 1. Full verification
+
+Run the full suite: format → lint → typecheck → test.
+
+```
+npm run format && npm run lint && npm run typecheck && npm test
+```
+
+Fix any failures before continuing. Do not skip this step.
+
+## 2. Doc sync
+
+Check what changed this session (use git diff to see modified files) and update the relevant docs:
+
+- **SPEC.md** (`docs/SPEC.md`) — update "Current state" section if the system state changed
+- **ROADMAP.md** (`docs/ROADMAP.md`) — add a dated entry if meaningful features or fixes landed
+- **ADR** (`docs/adr/`) — update or create an ADR if a non-obvious architectural decision was made
+- **AGENTS.md** — update "Status" line if the phase changed
+
+Rule from AGENTS.md: *"If a session changes reality, update the doc that describes it."*
+
+## 3. Memory update
+
+Update the project memory in `.claude/projects/.../memory/` with anything non-obvious that future sessions should know:
+- New architectural patterns introduced
+- Bugs fixed and their root cause
+- Decisions made and why
+
+## 4. Report
+
+Summarise what was done this session in 3–6 bullet points. State the verification status: ✅ format / lint / typecheck / test all green.

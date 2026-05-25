@@ -44,9 +44,20 @@ src/               — TypeScript app
 
 - **Run terminal commands yourself.** Do not give the user a list of commands to
   run manually — execute them directly with your tools.
-- **Finish with repo hygiene checks.** After code changes, run `npm run format`,
-  `npm run lint`, and `npm run typecheck` before handing work back. If tests are
-  relevant, run `npm test` too.
+- **Use a fast feedback loop during iteration.** Do not run the full
+  `format + lint + typecheck + test` suite after every small user message.
+  For visual tweaks or rapid back-and-forth, prefer no checks or narrowly
+  targeted checks that match the edited area.
+- **Track verification state explicitly.** The agent must know whether the
+  current work is `draft`, `checked` (targeted verification only), or
+  `finalized` (full verification run) and communicate that status clearly.
+- **Finish checkpoints and session close-outs with repo hygiene checks.** Before
+  treating work as finalized or ending the session, run `npm run format`,
+  `npm run lint`, and `npm run typecheck`. If behavior, rendering, or shared
+  logic changed, run `npm test` too.
+- **Warn proactively when full verification is still pending.** If the agent is
+  handing back an intermediate result without the final verification pass, it
+  must say that a full pass still needs to be run before the session is closed.
 - **The user validates the physical panel.** After pushing an image via the
   sidecar, tell the user what they should see and ask them to confirm.
 - **The sidecar must be running** before any `/display` call. Check with

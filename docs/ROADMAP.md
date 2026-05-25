@@ -103,7 +103,7 @@ current weather automatically on the configured interval.
     `cloudy` (8 frames), `fog` (8 frames), `rain` (8 frames), `heavy-rain` (8 frames),
     `snow` (12 frames), `thunder` (10 frames).
 - **Pixel pet** — a 5-wide Bengal-coloured pixel cat overlaid on every frame.
-  Behaviours: walk, sit, lie, jump, perch. Dims at night.
+  Behaviours: walk, sit, lie, jump, perch, burp, dream. Dims at night.
   See [[adr/0005-pixel-pet-sprite-system]] and [[adr/0006-perch-behavior-and-state-machine-lessons]].
 
 ---
@@ -148,6 +148,26 @@ See [[PHASE6-PLAN]] for the full completion record and historical plan.
 The follow-up refactor/test-hardening program that started after Phase 6 is now
 complete and reflected in `SPEC`, `ARCHITECTURE`, `RUNBOOK`, and the updated
 historical notes.
+
+---
+
+## Post-Phase-6 pet enhancements ✅ (2026-05-25)
+
+Small feature/fix session after Phase 6 closed:
+
+- **`poo` behavior** — POO_A/POO_B sprites, `advancePoo`, brown `pooItems`
+  floor residue.
+- **Multi-item scene residue** — `pukeItems`/`pooItems` arrays replace scalar
+  `pukeX/Y/TTL` / `pooX/Y/TTL`; each burp or poo deposits an independent
+  `SceneItem` with its own TTL.
+- **Night-walk oscillation fix** — direction now only flips at `x >= 25`
+  boundary instead of being forced every frame.
+- **Dream bubbles** — tighter: 1 px step, max 3 px height.
+- **Behavior balance** — day walk ~47% (perch 18%), night walk ~19% with
+  dream 50% / lie 20%.
+- **Studio fix** — `CODE_BEHAVIOR_CONFIG` snapshot + `mergeWithDefaults`
+  prevent stale localStorage from poisoning the Discard flow or crashing
+  on missing behavior keys.
 
 ---
 

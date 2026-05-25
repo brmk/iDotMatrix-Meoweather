@@ -92,6 +92,7 @@ Must update:
 Examples:
 
 - new verification command
+- new verification cadence
 - simulator workflow changed
 - new required test step
 - new setup or debug flow
@@ -135,6 +136,7 @@ Before handing work back, the agent must ask:
 3. Did I update the temporary tracker if this was tracked work?
 4. Did I update durable docs if the change is now stable?
 5. Did I leave contradictory statements anywhere?
+6. Did I clearly state whether full verification was already run or is still pending?
 
 If the answer to any of these is "no" or "not sure", doc sync is not complete.
 
@@ -175,4 +177,5 @@ If a session changes docs, the agent's final summary should mention:
 - what code changed
 - which docs were updated
 - whether the tracker status/log was updated
+- whether full verification was run or remains pending for session close
 - whether any follow-up documentation migration is still pending

@@ -13,6 +13,8 @@ const BEHAVIOR_DUR: Record<string, number> = {
   jump: 8,
   perch: 12,
   dream: 120,
+  burp: 12,
+  poo: 10,
 };
 
 const WEATHER_OPTIONS = [
@@ -54,6 +56,8 @@ export default function Simulator() {
     isDay: true,
     eyesClosed: false,
     perchY: PET_Y_WALK,
+    pukeItems: [],
+    pooItems: [],
   });
   const petCtxRef = useRef<PetContext>(makePetContext());
   const frameIdxRef = useRef(0);

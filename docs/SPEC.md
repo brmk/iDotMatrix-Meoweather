@@ -99,11 +99,25 @@ Full component detail: [[ARCHITECTURE]]
 
 ## Current state
 
-Phase 6 is complete and its follow-up refactor/test-hardening work has also
-been completed and folded into the durable docs. The current codebase now uses
-modular `render/icons/`, `render/text/`, `render/pet/`, and `render/scene/`
-subsystems, direct module imports instead of compatibility barrels, deterministic
-render regression tests, and enforced coverage thresholds in Vitest.
+Phase 6 is complete. Post-phase pet enhancements (2026-05-25):
+
+- **`poo` behavior** — new sprite pair (POO_A/POO_B, squatting pose), brown
+  fading floor residue, registered in `BEHAVIOR_ADVANCERS`.
+- **Multiple scene items** — `PetState` no longer holds single `pukeX/Y/TTL`
+  and `pooX/Y/TTL` scalars. Both are now `pukeItems: SceneItem[]` and
+  `pooItems: SceneItem[]` (each `{ x, y, ttl }`). Every burp/poo event pushes
+  a new independent item; items tick and expire individually.
+- **Night-walk oscillation fix** — the old logic forced `facingRight` every
+  frame based on absolute position, causing a 24↔25 oscillation. Now direction
+  only flips when `x >= 25`; otherwise the current direction is preserved.
+- **Dream bubbles** — made more compact: 1 px vertical step (was 2 px), max 3 px
+  above base (was 6 px).
+- **Behavior balance** — day walk chance raised to ~47% (perch reduced from 50%
+  to 18%); night rest-weighted with dream at 50%, lie at 20%, walk ~19%.
+- **Studio robustness** — `CODE_BEHAVIOR_CONFIG` snapshot prevents
+  `syncBehaviorConfigRuntime` mutations from poisoning `defaultBehaviorConfig()`;
+  `mergeWithDefaults` fills missing localStorage keys from code defaults;
+  `vite.config.ts` generators updated for BURP/POO sprites and residue TTL fields.
 
 ---
 

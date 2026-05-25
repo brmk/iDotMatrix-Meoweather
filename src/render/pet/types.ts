@@ -5,7 +5,13 @@ export type Pixel = [x: number, y: number, colorKey: string];
 export type PetColor = Record<string, Color>;
 export type RawPetSprites = Record<SpriteKey, string[]>;
 
-export type PetBehavior = 'walk' | 'sit' | 'lie' | 'jump' | 'perch' | 'dream';
+export type PetBehavior = 'walk' | 'sit' | 'lie' | 'jump' | 'perch' | 'dream' | 'burp' | 'poo';
+
+export interface SceneItem {
+  x: number;
+  y: number;
+  ttl: number;
+}
 
 export interface PetState {
   x: number;
@@ -17,6 +23,8 @@ export interface PetState {
   isDay: boolean;
   eyesClosed: boolean;
   perchY: number;
+  pukeItems: SceneItem[];
+  pooItems: SceneItem[];
 }
 
 export interface JumpFrame {
@@ -31,6 +39,8 @@ export interface ParsedSprites {
   LIE: [Pixel[], Pixel[]];
   JUMP: JumpFrame[];
   DREAM: Pixel[];
+  BURP: [Pixel[], Pixel[]];
+  POO: [Pixel[], Pixel[]];
 }
 
 export interface BehaviorDrawResult {

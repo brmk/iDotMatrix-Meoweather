@@ -42,6 +42,23 @@ TypeScript or React changes. `npm test` should be added whenever behavior or
 rendering logic changed. `npm run test:coverage` enforces the project's current
 global thresholds (`85%` lines/statements, `75%` branches, `85%` functions).
 
+## Verification cadence
+
+Use verification in phases rather than paying the full cost after every small
+feedback message.
+
+- **Draft loop** — sprite tweaks, copy tweaks, and quick visual iteration may
+  skip checks entirely.
+- **Targeted check** — if a small code change needs confidence, run only the
+  smallest relevant command set (for example a focused test file) instead of the
+  whole suite.
+- **Final checkpoint** — before closing a session or calling work finalized, run
+  `npm run format`, `npm run lint`, and `npm run typecheck`. Add `npm test`
+  whenever behavior, rendering, or shared logic changed.
+
+If an intermediate handoff happens before the final checkpoint, call that out
+explicitly so it is clear that full verification is still pending.
+
 ## Install as background service (Login Item)
 
 ```bash

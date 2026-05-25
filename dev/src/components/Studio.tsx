@@ -23,6 +23,10 @@ const FRAME_ORDER: SpriteKey[] = [
   'JUMP_3',
   'JUMP_4',
   'DREAM',
+  'BURP_A',
+  'BURP_B',
+  'POO_A',
+  'POO_B',
 ];
 
 const PALETTE_KEYS = ['.', 'o', 'g', 's', 'l', 'r'];
@@ -38,6 +42,8 @@ const BEHAVIOR_DUR: Record<string, number> = {
   jump: 8,
   perch: 12,
   dream: 120,
+  burp: 12,
+  poo: 10,
 };
 const WEATHER_OPTIONS = [
   { value: '0_day', label: '☀ Clear Day' },
@@ -83,8 +89,10 @@ function loadFromLS(): Record<SpriteKey, string[]> {
   return defaultFrames();
 }
 
+const CODE_BEHAVIOR_CONFIG: PetBehaviorConfig = structuredClone(PET_BEHAVIOR_CONFIG);
+
 function defaultBehaviorConfig(): PetBehaviorConfig {
-  return structuredClone(PET_BEHAVIOR_CONFIG);
+  return structuredClone(CODE_BEHAVIOR_CONFIG);
 }
 
 function syncBehaviorConfigRuntime(config: PetBehaviorConfig): void {
@@ -92,14 +100,33 @@ function syncBehaviorConfigRuntime(config: PetBehaviorConfig): void {
   PET_BEHAVIOR_CONFIG.initialBlinkMax = config.initialBlinkMax;
   PET_BEHAVIOR_CONFIG.repeatBlinkMin = config.repeatBlinkMin;
   PET_BEHAVIOR_CONFIG.repeatBlinkMax = config.repeatBlinkMax;
+  PET_BEHAVIOR_CONFIG.burpResidueTTL = config.burpResidueTTL;
+  PET_BEHAVIOR_CONFIG.pooResidueTTL = config.pooResidueTTL;
   PET_BEHAVIOR_CONFIG.day = structuredClone(config.day);
   PET_BEHAVIOR_CONFIG.night = structuredClone(config.night);
+}
+
+function mergeWithDefaults(saved: PetBehaviorConfig, defaults: PetBehaviorConfig): PetBehaviorConfig {
+  return {
+    ...defaults,
+    ...saved,
+    day: {
+      ...defaults.day,
+      ...saved.day,
+      transitions: { ...defaults.day.transitions, ...saved.day?.transitions },
+    },
+    night: {
+      ...defaults.night,
+      ...saved.night,
+      transitions: { ...defaults.night.transitions, ...saved.night?.transitions },
+    },
+  };
 }
 
 function loadBehaviorConfigFromLS(): PetBehaviorConfig {
   try {
     const raw = localStorage.getItem('studio_behavior_config');
-    if (raw) return JSON.parse(raw) as PetBehaviorConfig;
+    if (raw) return mergeWithDefaults(JSON.parse(raw) as PetBehaviorConfig, defaultBehaviorConfig());
   } catch {
     /* ignore */
   }
@@ -147,6 +174,8 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
     isDay: true,
     eyesClosed: false,
     perchY: PET_Y_WALK,
+    pukeItems: [],
+    pooItems: [],
   });
   const petCtxRef = useRef<PetContext>(makePetContext());
   const frameIdxRef = useRef(0);
@@ -711,6 +740,68 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                   </button>
                 ))}
               </div>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  fontSize: 10,
+                  color: '#666',
+                }}
+              >
+                <span title="How many animation ticks the green burp residue stays on the floor before fading out completely." style={{ cursor: 'help' }}>
+                  Burp residue TTL
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={behaviorConfig.burpResidueTTL}
+                  style={numInp}
+                  onChange={(e) => {
+                    setBehaviorConfig((prev) => {
+                      const next = {
+                        ...prev,
+                        burpResidueTTL: Math.max(0, Math.floor(Number(e.target.value))),
+                      };
+                      saveBehaviorConfigToLS(next);
+                      return next;
+                    });
+                    setSaveStatus('unsaved');
+                  }}
+                />
+              </label>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  fontSize: 10,
+                  color: '#666',
+                }}
+              >
+                <span title="How many animation ticks the brown poo residue stays on the floor before fading out completely." style={{ cursor: 'help' }}>
+                  Poo residue TTL
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={behaviorConfig.pooResidueTTL}
+                  style={numInp}
+                  onChange={(e) => {
+                    setBehaviorConfig((prev) => {
+                      const next = {
+                        ...prev,
+                        pooResidueTTL: Math.max(0, Math.floor(Number(e.target.value))),
+                      };
+                      saveBehaviorConfigToLS(next);
+                      return next;
+                    });
+                    setSaveStatus('unsaved');
+                  }}
+                />
+              </label>
             </div>
 
             {(['day', 'night'] as const).map((periodKey) => {

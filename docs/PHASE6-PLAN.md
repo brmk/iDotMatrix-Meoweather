@@ -189,8 +189,8 @@ the walking cat, hot-reloads when `dev/render.js` is rebuilt.
 
 ### Part D — Nice-to-have (lower priority)
 
-- **More pet behaviors:** eat (hunches over a bowl), scratch ear, yawn (mouth
-  open for 2 frames), sleep on the temperature text
+- **More pet behaviors:** eat (hunches over a bowl), scratch ear, sleep on the
+  temperature text
 - **Personality tuning UI** in the simulator: sliders for behavior probabilities
 - **E2E smoke test:** headless Playwright that opens the simulator and asserts
   no JS errors across 10 seconds of animation

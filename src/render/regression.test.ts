@@ -82,6 +82,8 @@ describe('render regressions', () => {
       isDay: true,
       eyesClosed: false,
       perchY: PET_Y_WALK,
+      pukeItems: [],
+      pooItems: [],
     };
 
     const composite = new Uint8Array(weatherFrame.pixels);

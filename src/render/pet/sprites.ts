@@ -32,6 +32,8 @@ function buildParsedSprites(raw: RawPetSprites): ParsedSprites {
       { pix: parseSpritePixels(raw.JUMP_4), yOff: 0 },
     ],
     DREAM: parseSpritePixels(raw.DREAM),
+    BURP: [parseSpritePixels(raw.BURP_A), parseSpritePixels(raw.BURP_B)],
+    POO: [parseSpritePixels(raw.POO_A), parseSpritePixels(raw.POO_B)],
   };
 }
 

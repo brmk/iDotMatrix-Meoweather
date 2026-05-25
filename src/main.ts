@@ -20,6 +20,8 @@ const pet: PetState = {
   isDay: true,
   eyesClosed: false,
   perchY: PET_Y_WALK,
+  pukeItems: [],
+  pooItems: [],
 };
 
 const petCtx: PetContext = makePetContext();

@@ -18,6 +18,8 @@ function makeState(overrides: Partial<PetState> = {}): PetState {
     isDay: true,
     eyesClosed: false,
     perchY: PET_Y_WALK,
+    pukeItems: [],
+    pooItems: [],
     ...overrides,
   };
 }
@@ -73,22 +75,44 @@ describe('render/pet drawing', () => {
 
     const phase0 = mkBuf();
     drawPet(phase0, { ...baseState, behaviorFrame: 0 });
-    expect(readPixel(phase0, 7, PET_Y_WALK - 2)).toEqual([160, 160, 255]);
+    expect(readPixel(phase0, 7, PET_Y_WALK - 1)).toEqual([160, 160, 255]);
 
     const phase3 = mkBuf();
     drawPet(phase3, { ...baseState, behaviorFrame: 3 });
-    expect(readPixel(phase3, 8, PET_Y_WALK - 4)).toEqual([160, 160, 255]);
+    expect(readPixel(phase3, 8, PET_Y_WALK - 2)).toEqual([160, 160, 255]);
 
     const phase6 = mkBuf();
     drawPet(phase6, { ...baseState, behaviorFrame: 6 });
-    expect(readPixel(phase6, 9, PET_Y_WALK - 6)).toEqual([160, 160, 255]);
+    expect(readPixel(phase6, 9, PET_Y_WALK - 3)).toEqual([160, 160, 255]);
+  });
+
+  it('draws the burp stream once, then leaves a fading floor pixel', () => {
+    const baseState = makeState({ behavior: 'burp', x: 5, facingRight: true });
+
+    const phase1 = mkBuf();
+    drawPet(phase1, { ...baseState, behaviorFrame: 1, pukeItems: [{ x: 10, y: PET_Y_WALK + 3, ttl: 15 }] });
+    expect(readPixel(phase1, 9, PET_Y_WALK + 2)).toEqual([...PET_DAY.g]);
+    expect(readPixel(phase1, 10, PET_Y_WALK + 3)).toEqual([50, 220, 80]);
+
+    const phase5 = mkBuf();
+    drawPet(phase5, { ...baseState, behaviorFrame: 5, pukeItems: [{ x: 10, y: PET_Y_WALK + 3, ttl: 9 }] });
+    expect(readPixel(phase5, 11, PET_Y_WALK + 3)).toEqual([0, 0, 0]);
+    expect(readPixel(phase5, 10, PET_Y_WALK + 3)).toEqual([42, 185, 68]);
+
+    const phase13 = mkBuf();
+    drawPet(phase13, { ...baseState, behavior: 'walk', behaviorFrame: 0, pukeItems: [{ x: 10, y: PET_Y_WALK + 3, ttl: 3 }] });
+    expect(readPixel(phase13, 10, PET_Y_WALK + 3)).toEqual([24, 110, 40]);
+
+    const cleared = mkBuf();
+    drawPet(cleared, { ...baseState, behavior: 'walk', behaviorFrame: 0 });
+    expect(readPixel(cleared, 10, PET_Y_WALK + 3)).toEqual([0, 0, 0]);
   });
 });
 
 describe('render/pet behavior resolution', () => {
   const sprites = parsePetSprites(RAW_SPRITES);
 
-  it('resolves sit, lie, jump, perch, and dream poses explicitly', () => {
+  it('resolves sit, lie, jump, perch, dream, and burp poses explicitly', () => {
     expect(resolvePetBehaviorDraw(makeState({ behavior: 'sit', behaviorFrame: 20 }), sprites)).toMatchObject({
       baseY: PET_Y_WALK,
       drawTail: false,
@@ -117,6 +141,12 @@ describe('render/pet behavior resolution', () => {
       baseY: PET_Y_WALK,
       drawTail: false,
       pixels: sprites.DREAM,
+    });
+
+    expect(resolvePetBehaviorDraw(makeState({ behavior: 'burp', behaviorFrame: 4 }), sprites)).toMatchObject({
+      baseY: PET_Y_WALK,
+      drawTail: false,
+      pixels: sprites.BURP[1],
     });
   });
 

@@ -56,9 +56,8 @@ export function advanceWalk(state: PetState, ctx: PetContext, rand = Math.random
   if (ctx.stepCounter < 2) return state;
   ctx.stepCounter = 0;
 
-  if (!state.isDay) {
-    if (state.x < 25) state.facingRight = true;
-    else state.facingRight = false;
+  if (!state.isDay && state.x >= 25) {
+    state.facingRight = false;
   }
 
   state.x += state.facingRight ? 1 : -1;
@@ -124,6 +123,34 @@ export function advanceTimed(state: PetState, ctx: PetContext): PetState {
   return state;
 }
 
+export function advanceBurp(state: PetState, ctx: PetContext): PetState {
+  if (state.behaviorFrame === 0) {
+    const floorX = state.facingRight ? state.x + PET_WIDTH : state.x - 1;
+    state.pukeItems.push({ x: floorX, y: PET_Y_WALK + 3, ttl: PET_BEHAVIOR_CONFIG.burpResidueTTL });
+  }
+
+  state.behaviorFrame++;
+  if (state.behaviorFrame >= ctx.behaviorDur) {
+    state.behavior = 'walk';
+    state.behaviorFrame = 0;
+  }
+  return state;
+}
+
+export function advancePoo(state: PetState, ctx: PetContext): PetState {
+  if (state.behaviorFrame === 0) {
+    const rearX = state.facingRight ? state.x : state.x + PET_WIDTH - 1;
+    state.pooItems.push({ x: rearX, y: PET_Y_WALK + 3, ttl: PET_BEHAVIOR_CONFIG.pooResidueTTL });
+  }
+
+  state.behaviorFrame++;
+  if (state.behaviorFrame >= ctx.behaviorDur) {
+    state.behavior = 'walk';
+    state.behaviorFrame = 0;
+  }
+  return state;
+}
+
 // Adding a new behavior with custom advance logic: add an entry here.
 // Behaviors not listed fall back to advanceTimed (increment frame, return to walk when done).
 type BehaviorAdvancer = (state: PetState, ctx: PetContext, rand: () => number) => PetState;
@@ -131,9 +158,16 @@ type BehaviorAdvancer = (state: PetState, ctx: PetContext, rand: () => number) =
 const BEHAVIOR_ADVANCERS: Partial<Record<PetBehavior, BehaviorAdvancer>> = {
   walk: advanceWalk,
   perch: advancePerch,
+  burp: advanceBurp,
+  poo: advancePoo,
 };
 
 export function advancePet(state: PetState, ctx: PetContext, rand = Math.random): PetState {
+  for (const item of state.pukeItems) item.ttl--;
+  state.pukeItems = state.pukeItems.filter((i) => i.ttl > 0);
+  for (const item of state.pooItems) item.ttl--;
+  state.pooItems = state.pooItems.filter((i) => i.ttl > 0);
+
   ctx.tailCounter++;
   ctx.blinkTimer--;
 

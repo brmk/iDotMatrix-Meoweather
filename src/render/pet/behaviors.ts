@@ -57,6 +57,18 @@ export function resolvePetBehaviorDraw(state: PetState, sprites: ParsedSprites):
         baseY: PET_Y_WALK,
         drawTail: false,
       };
+    case 'burp':
+      return {
+        pixels: resolveAnimatedPose(sprites.BURP, state.behaviorFrame, 4),
+        baseY: PET_Y_WALK,
+        drawTail: false,
+      };
+    case 'poo':
+      return {
+        pixels: resolveAnimatedPose(sprites.POO, state.behaviorFrame, 4),
+        baseY: PET_Y_WALK,
+        drawTail: false,
+      };
   }
 }
 
