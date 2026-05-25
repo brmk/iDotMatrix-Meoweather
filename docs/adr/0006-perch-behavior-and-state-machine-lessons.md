@@ -86,8 +86,11 @@ The tail pixel at `baseY + TAIL_Y[phase]` oscillated between `y=18` and `y=19`
 while the cat body occupied `y=17..20`. A single brown pixel appearing at face
 height alternating with body height looked like the whole cat wobbling.
 
-**Fix:** suppress the tail pixel entirely during `perch` (set `drawTail =
-false`), same as `sit`. The perch visual is clean without it.
+**Resolution:** the oscillation between `baseY+1` (eye level) and `baseY+2`
+(spine level) is the correct animation for a perching cat's raised tail.
+The original "wobbling" impression was caused by the leg animation bug
+(root cause 1) running simultaneously. With that fixed, the normal
+`TAIL_Y` behaviour is used unchanged for `perch`.
 
 ---
 

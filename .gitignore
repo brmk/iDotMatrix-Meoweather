@@ -9,6 +9,7 @@ node_modules/
 dist/
 build/
 *.js.map
+dev/render.js
 
 # Env / secrets
 .env

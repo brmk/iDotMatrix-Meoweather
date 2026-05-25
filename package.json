@@ -6,12 +6,17 @@
     "start": "tsx src/main.ts",
     "start:sidecar": "cd sidecar && .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765",
     "dev": "concurrently --names sidecar,ts --prefix-colors cyan,yellow \"cd sidecar && .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765 --reload\" \"tsx watch src/main.ts\"",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "build:sim": "npx esbuild src/browser-bundle.ts --bundle --format=iife --global-name=SimLib --outfile=dev/render.js",
+    "dev:sim": "node scripts/dev-sim.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.41",
     "concurrently": "^9.2.1",
+    "esbuild": "^0.28.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.7"
   }
 }
