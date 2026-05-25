@@ -426,14 +426,24 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
               return (
                 <div key={periodKey} style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                    <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>{periodKey.toUpperCase()} ROLLS</h2>
+                    <h2
+                      title="Each roll decides whether the pet keeps walking or switches to one of these behaviors. Chance is the probability; min and max are duration bounds in animation ticks."
+                      style={{ fontSize: 10, color: '#555', letterSpacing: 1, cursor: 'help' }}
+                    >
+                      {periodKey.toUpperCase()} ROLLS
+                    </h2>
                     <span style={{ fontSize: 10, color: total > 1 ? '#d77' : '#777' }}>
                       total {percent(total)} · walk {percent(Math.max(0, 1 - total))}
                     </span>
                   </div>
 
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 10, color: '#666' }}>
-                    Walk budget
+                    <span
+                      title="Randomized number of walking ticks before the pet makes the next behavior roll."
+                      style={{ cursor: 'help' }}
+                    >
+                      Walk budget
+                    </span>
                     <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <input type="number" min={0} value={period.walkBudgetMin} style={numInp}
                         onChange={e => updatePeriod(periodKey, prev => ({ ...prev, walkBudgetMin: Math.max(0, Number(e.target.value)) }))} />
@@ -445,16 +455,16 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr) 56px 56px', gap: 6, alignItems: 'center', fontSize: 9, color: '#666', textTransform: 'uppercase', letterSpacing: 0.6 }}>
                     <span>Mode</span>
-                    <span>Chance</span>
-                    <span style={{ textAlign: 'right' }}>Min</span>
-                    <span style={{ textAlign: 'right' }}>Max</span>
+                    <span title="Probability that this behavior will be chosen when a day/night behavior roll happens.">Chance</span>
+                    <span title="Minimum duration for this behavior, in animation ticks." style={{ textAlign: 'right', cursor: 'help' }}>Min</span>
+                    <span title="Maximum duration for this behavior, in animation ticks." style={{ textAlign: 'right', cursor: 'help' }}>Max</span>
                   </div>
 
                   {EDITABLE_BEHAVIORS.map(behaviorKey => {
                     const entry = period.transitions[behaviorKey]!;
                     return (
                       <div key={behaviorKey} style={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr) 56px 56px', gap: 6, alignItems: 'center', fontSize: 10, color: '#777' }}>
-                        <span style={{ color: '#999' }}>{behaviorKey}</span>
+                        <span title={`Behavior: ${behaviorKey}`} style={{ color: '#999' }}>{behaviorKey}</span>
                         <label style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 38px', alignItems: 'center', gap: 6, minWidth: 0 }}>
                           <input
                             type="range"
@@ -463,6 +473,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                             step={1}
                             value={Math.round(entry.chance * 100)}
                             style={{ width: '100%', minWidth: 0 }}
+                            title={`Chance for ${behaviorKey}: ${percent(entry.chance)}`}
                             onChange={e => updateChance(periodKey, behaviorKey, 'chance', Number(e.target.value) / 100)}
                           />
                           <span style={{ width: 36, textAlign: 'right' }}>{percent(entry.chance)}</span>
@@ -472,6 +483,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                           min={0}
                           value={entry.minDuration}
                           style={{ ...numInp, width: '100%', minWidth: 0 }}
+                          title={`Minimum ${behaviorKey} duration in animation ticks.`}
                           onChange={e => updateChance(periodKey, behaviorKey, 'minDuration', Number(e.target.value))}
                         />
                         <input
@@ -479,6 +491,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                           min={0}
                           value={entry.maxDuration}
                           style={{ ...numInp, width: '100%', minWidth: 0 }}
+                          title={`Maximum ${behaviorKey} duration in animation ticks.`}
                           onChange={e => updateChance(periodKey, behaviorKey, 'maxDuration', Number(e.target.value))}
                         />
                       </div>
