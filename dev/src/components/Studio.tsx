@@ -221,6 +221,9 @@ export default function Studio() {
   }, []);
 
   const statusColor = { saved: '#4a8', unsaved: '#a84', saving: '#888', error: '#a44' }[saveStatus];
+  const gridRows = frames[curFrame];
+  const gridWidth = 5 * CELL + 1;
+  const gridHeight = gridRows.length * CELL + 1;
 
   // ---- Shared input styles ----
   const inp: React.CSSProperties = { background: '#222', color: '#ccc', border: '1px solid #3a3a3a', padding: '3px 5px', fontFamily: 'monospace', fontSize: 11, width: '100%' };
@@ -244,9 +247,9 @@ export default function Studio() {
         </div>
 
         {/* Grid canvas */}
-        <div style={{ flex: 1, padding: 12, display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+        <div style={{ flex: 1, padding: 12, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto' }}>
           <canvas ref={gridRef}
-            style={{ cursor: 'crosshair', imageRendering: 'pixelated' }}
+            style={{ cursor: 'crosshair', imageRendering: 'pixelated', width: gridWidth, height: gridHeight, flex: '0 0 auto' }}
             onMouseDown={e => { e.preventDefault(); painting.current = true; paintAt(e, e.button === 2); }}
             onMouseMove={e => { if (painting.current) paintAt(e, e.button === 2); }}
             onContextMenu={e => { e.preventDefault(); paintAt(e, true); }}
