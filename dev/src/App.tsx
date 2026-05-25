@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Simulator from './components/Simulator';
-import Studio from './components/Studio';
+import Studio, { type StudioNavActions } from './components/Studio';
 
 type Tab = 'simulator' | 'studio';
 
@@ -16,6 +16,15 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('simulator');
+  const [studioNav, setStudioNav] = useState<StudioNavActions | null>(null);
+  const statusColor = studioNav ? { saved: '#4a8', unsaved: '#a84', saving: '#888', error: '#a44' }[studioNav.saveStatus] : '#888';
+  const statusText = studioNav
+    ? studioNav.saveStatus === 'saving'
+      ? 'saving…'
+      : studioNav.saveStatus === 'error'
+        ? 'save failed — is npm run dev:sim running?'
+        : studioNav.saveStatus
+    : '';
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -27,9 +36,20 @@ export default function App() {
         {(['simulator', 'studio'] as Tab[]).map(t => (
           <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>{t}</button>
         ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {tab === 'studio' && studioNav && (
+            <>
+              <span style={{ fontSize: 10, color: statusColor }}>
+                ● {statusText}
+              </span>
+              <button style={tabStyle(false)} onClick={studioNav.onDiscard}>Discard local changes</button>
+              <button style={tabStyle(false)} onClick={studioNav.onSave}>Save all</button>
+            </>
+          )}
+        </div>
       </header>
       {tab === 'simulator' && <Simulator />}
-      {tab === 'studio'    && <Studio />}
+      {tab === 'studio'    && <Studio onNavActionsChange={setStudioNav} />}
     </div>
   );
 }

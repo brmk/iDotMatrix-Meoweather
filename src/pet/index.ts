@@ -1,5 +1,6 @@
 import { PET_Y_WALK, PET_Y_PERCH, PET_WIDTH } from '../render/pet-draw.js';
 import type { PetState, PetBehavior } from '../render/pet-draw.js';
+import { PET_BEHAVIOR_CONFIG, type BehaviorPeriodConfig } from './config.js';
 
 export type { PetBehavior, PetState };
 
@@ -19,30 +20,30 @@ export function makePetContext(rand = Math.random): PetContext {
   return {
     stepCounter: 0,
     tailCounter: 0,
-    blinkTimer: rndWith(20, 40, rand),
-    walkBudget: rndWith(15, 40, rand),
+    blinkTimer: rndWith(PET_BEHAVIOR_CONFIG.initialBlinkMin, PET_BEHAVIOR_CONFIG.initialBlinkMax, rand),
+    walkBudget: rndWith(PET_BEHAVIOR_CONFIG.day.walkBudgetMin, PET_BEHAVIOR_CONFIG.day.walkBudgetMax, rand),
     behaviorDur: 0,
   };
 }
 
-function rollBehavior(state: PetState, ctx: PetContext, rand: () => number): void {
-  const roll = rand();
-  let next: PetBehavior = 'walk';
-
-  if (!state.isDay) {
-    if      (roll < 0.55) { next = 'dream'; ctx.behaviorDur = rndWith(80, 160, rand); }
-    else if (roll < 0.75) { next = 'lie';   ctx.behaviorDur = rndWith(50, 100, rand); }
-    else if (roll < 0.90) { next = 'sit';   ctx.behaviorDur = rndWith(20, 50, rand);  }
-    ctx.walkBudget = rndWith(3, 10, rand);
-  } else {
-    if      (roll < 0.15) { next = 'sit';   ctx.behaviorDur = rndWith(30, 80, rand);  }
-    else if (roll < 0.25) { next = 'lie';   ctx.behaviorDur = rndWith(50, 120, rand); }
-    else if (roll < 0.35) { next = 'jump';  ctx.behaviorDur = 8;                      }
-    else if (roll < 0.85) { next = 'perch'; ctx.behaviorDur = rndWith(8, 16, rand);   }
-    ctx.walkBudget = rndWith(15, 40, rand);
+function pickBehavior(period: BehaviorPeriodConfig, roll: number): PetBehavior {
+  let cursor = 0;
+  for (const [behavior, cfg] of Object.entries(period.transitions) as Array<[PetBehavior, BehaviorPeriodConfig['transitions'][PetBehavior]]>) {
+    if (!cfg || cfg.chance <= 0) continue;
+    cursor += cfg.chance;
+    if (roll < cursor) return behavior;
   }
+  return 'walk';
+}
 
-  if (next !== 'walk') {
+function rollBehavior(state: PetState, ctx: PetContext, rand: () => number): void {
+  const period = state.isDay ? PET_BEHAVIOR_CONFIG.day : PET_BEHAVIOR_CONFIG.night;
+  const next = pickBehavior(period, rand());
+  const nextCfg = period.transitions[next];
+  ctx.walkBudget = rndWith(period.walkBudgetMin, period.walkBudgetMax, rand);
+
+  if (next !== 'walk' && nextCfg) {
+    ctx.behaviorDur = rndWith(nextCfg.minDuration, nextCfg.maxDuration, rand);
     state.behavior = next;
     state.behaviorFrame = 0;
   }
@@ -93,7 +94,8 @@ export function advancePerch(state: PetState, ctx: PetContext, rand = Math.rando
       state.perchY = PET_Y_WALK;
       state.behavior = 'walk';
       state.behaviorFrame = 0;
-      ctx.walkBudget = rndWith(15, 40, rand);
+      const period = state.isDay ? PET_BEHAVIOR_CONFIG.day : PET_BEHAVIOR_CONFIG.night;
+      ctx.walkBudget = rndWith(period.walkBudgetMin, period.walkBudgetMax, rand);
     }
   }
 
@@ -129,7 +131,9 @@ export function advancePet(state: PetState, ctx: PetContext, rand = Math.random)
 
   if (ctx.blinkTimer <= 0) {
     state.eyesClosed = ctx.blinkTimer > -2;
-    if (ctx.blinkTimer <= -2) ctx.blinkTimer = rndWith(25, 50, rand);
+    if (ctx.blinkTimer <= -2) {
+      ctx.blinkTimer = rndWith(PET_BEHAVIOR_CONFIG.repeatBlinkMin, PET_BEHAVIOR_CONFIG.repeatBlinkMax, rand);
+    }
   } else {
     state.eyesClosed = false;
   }

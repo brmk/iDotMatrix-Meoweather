@@ -4,6 +4,13 @@ import { drawPetWithSprites, PET_DAY, PET_Y_WALK } from '@src/render/pet-draw';
 import { renderAnimation } from '@src/render/scene';
 import { makePetContext, advancePet } from '@src/pet/index';
 import type { PetState, PetContext } from '@src/pet/index';
+import {
+  EDITABLE_BEHAVIORS,
+  PET_BEHAVIOR_CONFIG,
+  type BehaviorChanceConfig,
+  type PetBehaviorConfig,
+  type BehaviorPeriodConfig,
+} from '@src/pet/config';
 
 // ---- constants derived from src/ — no duplication ----
 const FRAME_ORDER: SpriteKey[] = [
@@ -34,6 +41,16 @@ const SCALE = 10;
 
 type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
 
+export interface StudioNavActions {
+  saveStatus: SaveStatus;
+  onSave: () => void;
+  onDiscard: () => void;
+}
+
+interface StudioProps {
+  onNavActionsChange?: (actions: StudioNavActions | null) => void;
+}
+
 function defaultFrames(): Record<SpriteKey, string[]> {
   return Object.fromEntries(FRAME_ORDER.map(k => [k, [...RAW_SPRITES[k]]])) as Record<SpriteKey, string[]>;
 }
@@ -49,8 +66,42 @@ function loadFromLS(): Record<SpriteKey, string[]> {
   return defaultFrames();
 }
 
-export default function Studio() {
+function defaultBehaviorConfig(): PetBehaviorConfig {
+  return structuredClone(PET_BEHAVIOR_CONFIG);
+}
+
+function syncBehaviorConfigRuntime(config: PetBehaviorConfig): void {
+  PET_BEHAVIOR_CONFIG.initialBlinkMin = config.initialBlinkMin;
+  PET_BEHAVIOR_CONFIG.initialBlinkMax = config.initialBlinkMax;
+  PET_BEHAVIOR_CONFIG.repeatBlinkMin = config.repeatBlinkMin;
+  PET_BEHAVIOR_CONFIG.repeatBlinkMax = config.repeatBlinkMax;
+  PET_BEHAVIOR_CONFIG.day = structuredClone(config.day);
+  PET_BEHAVIOR_CONFIG.night = structuredClone(config.night);
+}
+
+function loadBehaviorConfigFromLS(): PetBehaviorConfig {
+  try {
+    const raw = localStorage.getItem('studio_behavior_config');
+    if (raw) return JSON.parse(raw) as PetBehaviorConfig;
+  } catch (_) { /* ignore */ }
+  return defaultBehaviorConfig();
+}
+
+function saveBehaviorConfigToLS(config: PetBehaviorConfig): void {
+  localStorage.setItem('studio_behavior_config', JSON.stringify(config));
+}
+
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function sumChances(period: BehaviorPeriodConfig): number {
+  return EDITABLE_BEHAVIORS.reduce((sum, behavior) => sum + (period.transitions[behavior]?.chance ?? 0), 0);
+}
+
+export default function Studio({ onNavActionsChange }: StudioProps) {
   const [frames, setFrames]   = useState<Record<SpriteKey, string[]>>(loadFromLS);
+  const [behaviorConfig, setBehaviorConfig] = useState<PetBehaviorConfig>(loadBehaviorConfigFromLS);
   const [curFrame, setCurFrame] = useState<SpriteKey>('WALK_A');
   const [selColor, setSelColor] = useState('o');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
@@ -75,8 +126,9 @@ export default function Studio() {
   const tickRef    = useRef(0);
   const rafRef     = useRef(0);
 
-  const liveRef = useRef({ frames, iconVal, temp, night, speed });
-  useEffect(() => { liveRef.current = { frames, iconVal, temp, night, speed }; }, [frames, iconVal, temp, night, speed]);
+  const liveRef = useRef({ frames, iconVal, temp, night, speed, behaviorConfig });
+  useEffect(() => { liveRef.current = { frames, iconVal, temp, night, speed, behaviorConfig }; }, [frames, iconVal, temp, night, speed, behaviorConfig]);
+  useEffect(() => { syncBehaviorConfigRuntime(behaviorConfig); }, [behaviorConfig]);
 
   // ---- Draw grid ----
   useEffect(() => {
@@ -116,7 +168,7 @@ export default function Studio() {
 
     function loop(ts: number) {
       rafRef.current = requestAnimationFrame(loop);
-      const { frames, iconVal, temp, night, speed } = liveRef.current;
+      const { frames, iconVal, temp, night, speed, behaviorConfig } = liveRef.current;
       const raw = iconVal;
       const snap = raw === '0_night'
         ? { weatherCode: 0, isDay: false, temperature: temp }
@@ -129,6 +181,10 @@ export default function Studio() {
       lastTsRef.current = ts;
 
       petRef.current.isDay = snap.isDay;
+      if (petCtxRef.current.walkBudget === 0 && petRef.current.behavior === 'walk') {
+        const period = snap.isDay ? behaviorConfig.day : behaviorConfig.night;
+        petCtxRef.current.walkBudget = period.walkBudgetMin;
+      }
       advancePet(petRef.current, petCtxRef.current);
       setBehavior(petRef.current.behavior);
 
@@ -191,24 +247,33 @@ export default function Studio() {
   const handleSave = useCallback(async () => {
     setSaveStatus('saving');
     try {
-      const res = await fetch('/save-sprites', {
+      const spriteRes = await fetch('/save-sprites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(frames),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!spriteRes.ok) throw new Error(await spriteRes.text());
+      const configRes = await fetch('/save-pet-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(behaviorConfig),
+      });
+      if (!configRes.ok) throw new Error(await configRes.text());
       setSaveStatus('saved');
     } catch (e) {
       console.error(e);
       setSaveStatus('error');
     }
-  }, [frames]);
+  }, [frames, behaviorConfig]);
 
   const handleReset = useCallback(() => {
-    if (!confirm('Reset all frames to defaults?')) return;
+    if (!confirm('Discard local Studio changes and reload values from code?')) return;
     const d = defaultFrames();
     setFrames(d);
     localStorage.setItem('studio_frames', JSON.stringify(d));
+    const config = defaultBehaviorConfig();
+    setBehaviorConfig(config);
+    saveBehaviorConfigToLS(config);
     setSaveStatus('saved');
   }, []);
 
@@ -220,20 +285,54 @@ export default function Studio() {
     if (b === 'perch') petRef.current.perchY = PET_Y_WALK;
   }, []);
 
-  const statusColor = { saved: '#4a8', unsaved: '#a84', saving: '#888', error: '#a44' }[saveStatus];
   const gridRows = frames[curFrame];
   const gridWidth = 5 * CELL + 1;
   const gridHeight = gridRows.length * CELL + 1;
+  const dayTotal = sumChances(behaviorConfig.day);
+  const nightTotal = sumChances(behaviorConfig.night);
 
   // ---- Shared input styles ----
   const inp: React.CSSProperties = { background: '#222', color: '#ccc', border: '1px solid #3a3a3a', padding: '3px 5px', fontFamily: 'monospace', fontSize: 11, width: '100%' };
-  const btn: React.CSSProperties = { background: '#2a2a2a', color: '#bbb', border: '1px solid #3a3a3a', padding: '5px 10px', fontFamily: 'monospace', fontSize: 11 };
+  const numInp: React.CSSProperties = { ...inp, width: 72 };
+
+  const updatePeriod = useCallback((periodKey: 'day' | 'night', updater: (period: BehaviorPeriodConfig) => BehaviorPeriodConfig) => {
+    setBehaviorConfig(prev => {
+      const next = { ...prev, [periodKey]: updater(prev[periodKey]) };
+      saveBehaviorConfigToLS(next);
+      return next;
+    });
+    setSaveStatus('unsaved');
+  }, []);
+
+  const updateChance = useCallback((periodKey: 'day' | 'night', behavior: keyof BehaviorPeriodConfig['transitions'], field: keyof BehaviorChanceConfig, value: number) => {
+    updatePeriod(periodKey, period => ({
+      ...period,
+      transitions: {
+        ...period.transitions,
+        [behavior]: {
+          chance: period.transitions[behavior]?.chance ?? 0,
+          minDuration: period.transitions[behavior]?.minDuration ?? 0,
+          maxDuration: period.transitions[behavior]?.maxDuration ?? 0,
+          [field]: field === 'chance' ? Math.max(0, Math.min(1, value)) : Math.max(0, Math.floor(value)),
+        },
+      },
+    }));
+  }, [updatePeriod]);
+
+  useEffect(() => {
+    onNavActionsChange?.({
+      saveStatus,
+      onSave: () => { void handleSave(); },
+      onDiscard: handleReset,
+    });
+    return () => onNavActionsChange?.(null);
+  }, [onNavActionsChange, saveStatus, handleSave, handleReset]);
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 37px)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 37px)', overflow: 'hidden', background: '#101010' }}>
 
       {/* ---- Editor panel ---- */}
-      <section style={{ width: 320, flexShrink: 0, borderRight: '1px solid #2a2a2a', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <section style={{ width: 372, flexShrink: 0, borderRight: '1px solid #2a2a2a', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#141414' }}>
         {/* Frame tabs */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, padding: 6, background: '#1a1a1a', borderBottom: '1px solid #2a2a2a' }}>
           {FRAME_ORDER.map(name => (
@@ -247,9 +346,9 @@ export default function Studio() {
         </div>
 
         {/* Grid canvas */}
-        <div style={{ flex: 1, padding: 12, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto' }}>
+        <div style={{ flex: 1, padding: 16, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto' }}>
           <canvas ref={gridRef}
-            style={{ cursor: 'crosshair', imageRendering: 'pixelated', width: gridWidth, height: gridHeight, flex: '0 0 auto' }}
+            style={{ cursor: 'crosshair', imageRendering: 'pixelated', width: gridWidth, height: gridHeight, flex: '0 0 auto', border: '1px solid #2a2a2a', background: '#0d0d0d', boxShadow: '0 0 0 1px #000 inset' }}
             onMouseDown={e => { e.preventDefault(); painting.current = true; paintAt(e, e.button === 2); }}
             onMouseMove={e => { if (painting.current) paintAt(e, e.button === 2); }}
             onContextMenu={e => { e.preventDefault(); paintAt(e, true); }}
@@ -270,55 +369,124 @@ export default function Studio() {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '8px 12px', borderTop: '1px solid #2a2a2a', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button style={btn} onClick={handleSave}>Save sprites</button>
-          <button style={btn} onClick={handleReset}>Reset defaults</button>
-          <span style={{ fontSize: 10, color: statusColor, marginLeft: 4 }}>
-            ● {saveStatus === 'saving' ? 'saving…' : saveStatus === 'error' ? 'save failed — is npm run dev:sim running?' : saveStatus}
-          </span>
-        </div>
+        <div style={{ padding: '8px 12px', borderTop: '1px solid #2a2a2a', display: 'flex', gap: 8, alignItems: 'center' }} />
       </section>
 
       {/* ---- Preview panel ---- */}
-      <section style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <canvas ref={previewRef} width={32*SCALE} height={32*SCALE}
-            style={{ imageRendering: 'pixelated', border: '1px solid #333' }} />
-          <div style={{ fontSize: 10, color: '#555', minHeight: 14 }}>{info}</div>
-        </div>
+      <section style={{ flex: 1, display: 'flex', justifyContent: 'center', overflow: 'auto', background: 'radial-gradient(circle at top, #1c1c1c 0%, #101010 65%)' }}>
+        <div style={{ width: 'min(100%, 720px)', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
+            <div style={{ padding: 18, border: '1px solid #2a2a2a', background: '#151515', boxShadow: '0 12px 30px rgba(0,0,0,0.28)' }}>
+              <canvas ref={previewRef} width={32*SCALE} height={32*SCALE}
+                style={{ display: 'block', imageRendering: 'pixelated', border: '1px solid #333', background: '#0d0d0d' }} />
+            </div>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 10, color: '#666', minHeight: 14 }}>{info}</div>
 
-        {/* Controls */}
-        <div style={{ padding: 12, width: 220, borderLeft: '1px solid #2a2a2a', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }}>
-          <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>WEATHER</h2>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-            Icon
-            <select value={iconVal} onChange={e => setIconVal(e.target.value)} style={inp}>
-              {WEATHER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-            Temp °C
-            <input type="number" value={temp} min={-30} max={50} style={inp} onChange={e => setTemp(Number(e.target.value))} />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, fontSize: 10, color: '#666' }}>
-            Night <input type="checkbox" checked={night} onChange={e => setNight(e.target.checked)} />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-            Speed ×{speed.toFixed(2)}
-            <input type="range" min={0.25} max={4} step={0.25} value={speed} style={inp} onChange={e => setSpeed(Number(e.target.value))} />
-          </label>
+          {/* Controls */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+            <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>WEATHER</h2>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
+                Icon
+                <select value={iconVal} onChange={e => setIconVal(e.target.value)} style={inp}>
+                  {WEATHER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
+                Temp °C
+                <input type="number" value={temp} min={-30} max={50} style={inp} onChange={e => setTemp(Number(e.target.value))} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, fontSize: 10, color: '#666' }}>
+                Night <input type="checkbox" checked={night} onChange={e => setNight(e.target.checked)} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
+                Speed ×{speed.toFixed(2)}
+                <input type="range" min={0.25} max={4} step={0.25} value={speed} style={inp} onChange={e => setSpeed(Number(e.target.value))} />
+              </label>
+            </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #2a2a2a' }} />
-          <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>PET BEHAVIOR</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {Object.keys(BEHAVIOR_DUR).map(b => (
-              <button key={b} onClick={() => forceBehavior(b)} style={{
-                padding: '4px 8px', fontFamily: 'monospace', fontSize: 10,
-                background: behavior === b ? '#1a3a1a' : '#2a2a2a',
-                color:      behavior === b ? '#8f8'   : '#bbb',
-                border:     `1px solid ${behavior === b ? '#4a8' : '#3a3a3a'}`,
-              }}>{b}</button>
-            ))}
+            <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>PET BEHAVIOR</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {Object.keys(BEHAVIOR_DUR).map(b => (
+                  <button key={b} onClick={() => forceBehavior(b)} style={{
+                    padding: '4px 8px', fontFamily: 'monospace', fontSize: 10,
+                    background: behavior === b ? '#1a3a1a' : '#2a2a2a',
+                    color:      behavior === b ? '#8f8'   : '#bbb',
+                    border:     `1px solid ${behavior === b ? '#4a8' : '#3a3a3a'}`,
+                  }}>{b}</button>
+                ))}
+              </div>
+            </div>
+
+            {(['day', 'night'] as const).map(periodKey => {
+              const period = behaviorConfig[periodKey];
+              const total = periodKey === 'day' ? dayTotal : nightTotal;
+              return (
+                <div key={periodKey} style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>{periodKey.toUpperCase()} ROLLS</h2>
+                    <span style={{ fontSize: 10, color: total > 1 ? '#d77' : '#777' }}>
+                      total {percent(total)} · walk {percent(Math.max(0, 1 - total))}
+                    </span>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 10, color: '#666' }}>
+                    Walk budget
+                    <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input type="number" min={0} value={period.walkBudgetMin} style={numInp}
+                        onChange={e => updatePeriod(periodKey, prev => ({ ...prev, walkBudgetMin: Math.max(0, Number(e.target.value)) }))} />
+                      <span>to</span>
+                      <input type="number" min={0} value={period.walkBudgetMax} style={numInp}
+                        onChange={e => updatePeriod(periodKey, prev => ({ ...prev, walkBudgetMax: Math.max(0, Number(e.target.value)) }))} />
+                    </span>
+                  </label>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr) 56px 56px', gap: 6, alignItems: 'center', fontSize: 9, color: '#666', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    <span>Mode</span>
+                    <span>Chance</span>
+                    <span style={{ textAlign: 'right' }}>Min</span>
+                    <span style={{ textAlign: 'right' }}>Max</span>
+                  </div>
+
+                  {EDITABLE_BEHAVIORS.map(behaviorKey => {
+                    const entry = period.transitions[behaviorKey]!;
+                    return (
+                      <div key={behaviorKey} style={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr) 56px 56px', gap: 6, alignItems: 'center', fontSize: 10, color: '#777' }}>
+                        <span style={{ color: '#999' }}>{behaviorKey}</span>
+                        <label style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 38px', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={Math.round(entry.chance * 100)}
+                            style={{ width: '100%', minWidth: 0 }}
+                            onChange={e => updateChance(periodKey, behaviorKey, 'chance', Number(e.target.value) / 100)}
+                          />
+                          <span style={{ width: 36, textAlign: 'right' }}>{percent(entry.chance)}</span>
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={entry.minDuration}
+                          style={{ ...numInp, width: '100%', minWidth: 0 }}
+                          onChange={e => updateChance(periodKey, behaviorKey, 'minDuration', Number(e.target.value))}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          value={entry.maxDuration}
+                          style={{ ...numInp, width: '100%', minWidth: 0 }}
+                          onChange={e => updateChance(periodKey, behaviorKey, 'maxDuration', Number(e.target.value))}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
