@@ -50,6 +50,7 @@ _push_lock = asyncio.Lock()
 
 # Previous frame as a flat list of (r,g,b) tuples, row-major. None = unknown.
 _prev_frame: Optional[list[tuple[int, int, int]]] = None
+_current_brightness: Optional[int] = None
 
 
 def _png_to_pixels(data: bytes) -> list[tuple[int, int, int]]:
@@ -120,9 +121,20 @@ async def _ensure_connected() -> IDotMatrixClient:
 
 def _reset_client() -> None:
     """Mark the client as dead so the next call to _ensure_connected reconnects."""
-    global _client, _prev_frame
+    global _client, _prev_frame, _current_brightness
     _client = None
     _prev_frame = None
+    _current_brightness = None
+
+
+async def _send_image_packets(client: IDotMatrixClient, packets: list) -> None:
+    """Send image packets with ATT write-response ACK but without the extra GATT read."""
+    ble = client._connection_manager.client
+    from idotmatrix.const import UUID_CHARACTERISTIC_WRITE_DATA
+    for chunk in packets:
+        for i, ble_packet in enumerate(chunk):
+            last = i == len(chunk) - 1
+            await ble.write_gatt_char(UUID_CHARACTERISTIC_WRITE_DATA, ble_packet, response=last)
 
 
 async def _push_frame(
@@ -135,7 +147,9 @@ async def _push_frame(
     async with _push_lock:
         if new_pixels == _prev_frame:
             return False
-        await client.image.upload_image_pixeldata(new_pixels)
+        pixel_data = bytearray(b for px in new_pixels for b in px)
+        packets = client.image._create_diy_image_data_packets(pixel_data)
+        await _send_image_packets(client, packets)
         _prev_frame = new_pixels
         return True
 
@@ -274,8 +288,11 @@ async def display(file: UploadFile, brightness: int = Form(default=80)):
     client = await _ensure_connected()
 
     try:
+        global _current_brightness
         brightness = max(5, min(100, brightness))
-        await client.set_brightness(brightness_percent=brightness)
+        if brightness != _current_brightness:
+            await client.set_brightness(brightness_percent=brightness)
+            _current_brightness = brightness
         sent = await _push_frame(client, new_pixels)
         if sent:
             logger.info("Frame uploaded")
