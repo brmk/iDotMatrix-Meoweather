@@ -12,8 +12,10 @@ import { fetchWeather } from './weather/index.js';
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const WEATHER_REFRESH_MS = 10 * 60 * 1000;
-// Fixed tick rate for the pet so its movement is decoupled from the weather animation frame rate.
-const PET_TICK_MS = 100;
+// Display tick rate — how often a frame is sent to the panel.
+const PET_TICK_MS = 50;
+// Pet advances once every N display ticks so its visual speed stays the same as before.
+const PET_ADVANCE_EVERY_N_TICKS = 2;
 
 // ---- Pet state machine ----
 
@@ -97,6 +99,7 @@ async function run(): Promise<void> {
   let lastFetch = Date.now();
   let lastWeatherFrame = Date.now();
   let matrixOff = false;
+  let displayTick = 0;  // counts display ticks; pet advances every PET_ADVANCE_EVERY_N_TICKS
 
   console.log(
     `[${new Date().toISOString()}] weather code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay} — ${frames.length} animation frames`,
@@ -159,8 +162,11 @@ async function run(): Promise<void> {
     const brightness = isDay ? controlState.brightness.day : controlState.brightness.night;
 
     pet.isDay = isDay;
-    advancePet(pet, petCtx);
-    applyBehaviorOverride();
+    if (displayTick % PET_ADVANCE_EVERY_N_TICKS === 0) {
+      advancePet(pet, petCtx);
+      applyBehaviorOverride();
+    }
+    displayTick++;
     controlState.tick++;
 
     WORK_BUF.set(frame.pixels);
