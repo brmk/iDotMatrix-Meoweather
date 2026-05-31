@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pkill -9 -f \"uvicorn main:app\")",
+      "Bash(pkill -9 -f \"tsx.*main.ts\")",
+      "Bash(pkill -9 -f \"concurrently\")",
+      "Bash(pkill -9 -f \"vite\")",
+      "Bash(xargs kill -9)",
+      "Bash(pkill -9 -f \"uvicorn main:app\" 2>/dev/null; pkill -9 -f \"tsx.*main.ts\" 2>/dev/null; pkill -9 -f \"concurrently\" 2>/dev/null; pkill -9 -f \"vite\" 2>/dev/null; lsof -ti :8765 | xargs kill -9 2>/dev/null; sleep 3 *)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
+  }
+}

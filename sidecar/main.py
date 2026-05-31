@@ -16,7 +16,6 @@ import asyncio
 import io
 import logging
 import os
-from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -24,6 +23,7 @@ from bleak import BleakScanner
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from idotmatrix.client import IDotMatrixClient
+from idotmatrix.modules.image import ImageMode
 from idotmatrix.screensize import ScreenSize
 from PIL import Image
 
@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 DEVICE_NAME_PREFIX = os.environ.get("DEVICE_NAME_PREFIX", "IDM")
 SCAN_TIMEOUT = float(os.environ.get("SCAN_TIMEOUT", "15"))
 EXPECTED_SIZE = 32
-GRAFFITI_CHUNK = 255  # max pixels per set_pixels call
 
 # Exponential backoff delays (seconds) between reconnect attempts.
 RECONNECT_DELAYS = (2.0, 5.0, 15.0)
@@ -47,6 +46,7 @@ _client: Optional[IDotMatrixClient] = None
 _device_address: Optional[str] = None
 _device_name: Optional[str] = None
 _connect_lock = asyncio.Lock()
+_push_lock = asyncio.Lock()
 
 # Previous frame as a flat list of (r,g,b) tuples, row-major. None = unknown.
 _prev_frame: Optional[list[tuple[int, int, int]]] = None
@@ -100,6 +100,7 @@ async def _ensure_connected() -> IDotMatrixClient:
                     mac_address=_device_address,
                 )
                 await candidate.connect()
+                await candidate.image.set_mode(ImageMode.EnableDIY)
                 _client = candidate
                 _prev_frame = None  # screen state unknown after (re)connect
                 logger.info("Connected.")
@@ -124,37 +125,19 @@ def _reset_client() -> None:
     _prev_frame = None
 
 
-async def _push_frame_diff(
+async def _push_frame(
     client: IDotMatrixClient,
     new_pixels: list[tuple[int, int, int]],
-) -> int:
-    """Send only changed pixels via graffiti. Returns number of pixels sent."""
+) -> bool:
+    """Upload full frame atomically. set_mode is called once on connect, not here."""
     global _prev_frame
 
-    # When _prev_frame is None the panel state is unknown — send every pixel
-    # unconditionally so stale content (e.g. red from a crashed session) is cleared.
-    full_refresh = _prev_frame is None
-    prev = _prev_frame if _prev_frame is not None else [(-1, -1, -1)] * (EXPECTED_SIZE * EXPECTED_SIZE)
-
-    # Group changed pixels by new color
-    by_color: dict[tuple[int, int, int], list[tuple[int, int]]] = defaultdict(list)
-    for idx, (new_color, old_color) in enumerate(zip(new_pixels, prev)):
-        if full_refresh or new_color != old_color:
-            x = idx % EXPECTED_SIZE
-            y = idx // EXPECTED_SIZE
-            by_color[new_color].append((x, y))
-
-    total = sum(len(v) for v in by_color.values())
-    if total == 0:
-        return 0
-
-    for color, coords in by_color.items():
-        # send in chunks of GRAFFITI_CHUNK
-        for i in range(0, len(coords), GRAFFITI_CHUNK):
-            await client.graffiti.set_pixels(color=color, xys=coords[i:i + GRAFFITI_CHUNK])
-
-    _prev_frame = new_pixels
-    return total
+    async with _push_lock:
+        if new_pixels == _prev_frame:
+            return False
+        await client.image.upload_image_pixeldata(new_pixels)
+        _prev_frame = new_pixels
+        return True
 
 
 @asynccontextmanager
@@ -162,7 +145,7 @@ async def lifespan(app: FastAPI):
     try:
         await _ensure_connected()
     except Exception as exc:
-        logger.error(f"Startup connection failed: {exc}")
+        logger.exception(f"Startup connection failed: {exc}")
         logger.warning("Sidecar running without panel — will retry on first /display request.")
     yield
     if _client is not None:
@@ -193,7 +176,7 @@ async def ble_scan(timeout: float = 8.0):
     timeout = max(3.0, min(30.0, timeout))
     logger.info(f"BLE scan started ({timeout}s)...")
     try:
-        async with asyncio.timeout(timeout + 2):
+        async with asyncio.timeout(timeout):
             devices = await BleakScanner.discover(return_adv=True)
     except TimeoutError:
         raise HTTPException(status_code=504, detail="BLE scan timed out")
@@ -293,11 +276,12 @@ async def display(file: UploadFile, brightness: int = Form(default=80)):
     try:
         brightness = max(5, min(100, brightness))
         await client.set_brightness(brightness_percent=brightness)
-        changed = await _push_frame_diff(client, new_pixels)
-        logger.info(f"Updated {changed} pixels")
+        sent = await _push_frame(client, new_pixels)
+        if sent:
+            logger.info("Frame uploaded")
     except Exception as exc:
         _reset_client()  # force reconnect on next request
         logging.exception("Failed to push frame — client reset, will reconnect next request")
         raise HTTPException(status_code=502, detail=f"Panel error: {exc}")
 
-    return {"ok": True, "changed_pixels": changed}
+    return {"ok": True}
