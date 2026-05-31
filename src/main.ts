@@ -38,6 +38,7 @@ controlState.petCtx = petCtx;
 const runtimeCfg = loadRuntimeConfig();
 if (runtimeCfg.brightness) controlState.brightness = runtimeCfg.brightness;
 if (runtimeCfg.nightHours !== undefined) controlState.nightHours = runtimeCfg.nightHours ?? null;
+if (runtimeCfg.powerSchedule !== undefined) controlState.powerSchedule = runtimeCfg.powerSchedule ?? null;
 
 // ---- Helpers ----
 
@@ -50,6 +51,15 @@ function pushFrame(b64: string): void {
       /* subscriber disconnected */
     }
   }
+}
+
+function isInOffWindow(): boolean {
+  const ps = controlState.powerSchedule;
+  if (!ps) return false;
+  const hour = new Date().getHours();
+  return ps.offFrom <= ps.offTo
+    ? hour >= ps.offFrom && hour < ps.offTo
+    : hour >= ps.offFrom || hour < ps.offTo;
 }
 
 function resolveIsDay(apiIsDay: boolean): boolean {
@@ -84,6 +94,7 @@ async function run(): Promise<void> {
   let frames: AnimationFrame[] = renderAnimation(snapshot);
   let frameIdx = 0;
   let lastFetch = Date.now();
+  let matrixOff = false;
 
   console.log(
     `[${new Date().toISOString()}] weather code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay} — ${frames.length} animation frames`,
@@ -101,6 +112,23 @@ async function run(): Promise<void> {
       } catch (err) {
         console.error('weather fetch failed, keeping previous data:', err);
       }
+    }
+
+    if (isInOffWindow()) {
+      if (!matrixOff) {
+        matrixOff = true;
+        console.log(`[${new Date().toISOString()}] power schedule: matrix off`);
+        const black = pixelsToPng(new Uint8Array(32 * 32 * 3));
+        pushFrame(black.toString('base64'));
+        try { await sendToPanel(black, 0); } catch { /* matrix may not be connected */ }
+      }
+      await sleep(30_000);
+      continue;
+    }
+
+    if (matrixOff) {
+      matrixOff = false;
+      console.log(`[${new Date().toISOString()}] power schedule: matrix on`);
     }
 
     if (controlState.weatherDirty) {

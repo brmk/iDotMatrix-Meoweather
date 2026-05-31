@@ -19,6 +19,12 @@ export interface NightHours {
   to: number;
 }
 
+/** Hour range [offFrom, offTo) during which the matrix is completely off, wrapping midnight if offFrom > offTo. */
+export interface PowerSchedule {
+  offFrom: number;
+  offTo: number;
+}
+
 export interface ControlState {
   pet: PetState | null;
   petCtx: PetContext | null;
@@ -29,6 +35,7 @@ export interface ControlState {
   weatherDirty: boolean;
   brightness: BrightnessConfig;
   nightHours: NightHours | null;
+  powerSchedule: PowerSchedule | null;
   logLines: string[];
   logSubs: Set<(line: string) => void>;
   currentFrame: string | null;
@@ -45,6 +52,7 @@ export const controlState: ControlState = {
   weatherDirty: false,
   brightness: { day: config.dayBrightness, night: config.nightBrightness },
   nightHours: null,
+  powerSchedule: null,
   logLines: [],
   logSubs: new Set(),
   currentFrame: null,

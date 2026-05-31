@@ -4,7 +4,7 @@ import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { controlState } from './control-state.js';
-import type { BrightnessConfig, NightHours } from './control-state.js';
+import type { BrightnessConfig, NightHours, PowerSchedule } from './control-state.js';
 import { saveRuntimeConfig } from './runtime-config.js';
 import type { PetBehavior } from './render/pet/types.js';
 import type { WeatherSnapshot } from './weather/index.js';
@@ -93,6 +93,7 @@ function currentHealth() {
     weatherOverride: controlState.weatherOverride !== null,
     brightness: controlState.brightness,
     nightHours: controlState.nightHours,
+    powerSchedule: controlState.powerSchedule,
   };
 }
 
@@ -206,6 +207,27 @@ async function routeControlNightHours(req: IncomingMessage, res: ServerResponse)
   }
 }
 
+async function routeControlPowerSchedule(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readBody(req);
+  try {
+    const data = JSON.parse(body) as PowerSchedule | null;
+    if (data === null) {
+      controlState.powerSchedule = null;
+    } else {
+      const { offFrom, offTo } = data;
+      if (typeof offFrom !== 'number' || typeof offTo !== 'number') {
+        json(res, 400, { error: 'offFrom and offTo hours required' });
+        return;
+      }
+      controlState.powerSchedule = { offFrom: Math.round(offFrom) % 24, offTo: Math.round(offTo) % 24 };
+    }
+    saveRuntimeConfig({ powerSchedule: controlState.powerSchedule });
+    json(res, 200, { ok: true });
+  } catch {
+    json(res, 400, { error: 'invalid JSON' });
+  }
+}
+
 async function routeControlWeather(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const body = await readBody(req);
   try {
@@ -240,6 +262,7 @@ async function dispatchPost(req: IncomingMessage, res: ServerResponse, path: str
   if (path === '/api/control/behavior') return routeControlBehavior(req, res);
   if (path === '/api/control/brightness') return routeControlBrightness(req, res);
   if (path === '/api/control/night-hours') return routeControlNightHours(req, res);
+  if (path === '/api/control/power-schedule') return routeControlPowerSchedule(req, res);
   if (path === '/api/control/weather') return routeControlWeather(req, res);
   if (path === '/api/control/weather/clear') {
     controlState.weatherOverride = null;

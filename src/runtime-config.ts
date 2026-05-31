@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { BrightnessConfig, NightHours } from './control-state.js';
+import type { BrightnessConfig, NightHours, PowerSchedule } from './control-state.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = resolve(__dirname, '..', 'runtime.json');
@@ -10,6 +10,7 @@ const CONFIG_PATH = resolve(__dirname, '..', 'runtime.json');
 export interface RuntimeConfig {
   brightness?: BrightnessConfig;
   nightHours?: NightHours | null;
+  powerSchedule?: PowerSchedule | null;
 }
 
 export function loadRuntimeConfig(): RuntimeConfig {
