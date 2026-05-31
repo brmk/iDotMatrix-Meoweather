@@ -97,13 +97,6 @@ async function postNightHours(from: number | null, to: number | null): Promise<v
   });
 }
 
-async function postPause(paused: boolean): Promise<void> {
-  await fetch('/api/control/pause', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ paused }),
-  });
-}
 
 async function postPowerSchedule(offFrom: number | null, offTo: number | null): Promise<void> {
   await fetch('/api/control/power-schedule', {
@@ -531,18 +524,6 @@ export default function Simulator() {
               )}
             </div>
 
-            <button
-              onClick={() => void postPause(!liveState?.matrixPaused)}
-              style={{
-                ...ctrl,
-                cursor: 'pointer',
-                color: liveState?.matrixPaused ? '#a84' : '#888',
-                borderColor: liveState?.matrixPaused ? '#864' : '#555',
-                background: liveState?.matrixPaused ? '#2a1a00' : '#2a2a2a',
-              }}
-            >
-              {liveState?.matrixPaused ? '▶ Resume matrix' : '⏸ Pause matrix'}
-            </button>
           </div>
         )}
 

@@ -63,7 +63,6 @@ export default function Connection() {
   const [scanning, setScanning] = useState(false);
   const [devices, setDevices] = useState<BleDevice[] | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchHealth = useCallback(async () => {
@@ -151,39 +150,17 @@ export default function Connection() {
     }
   };
 
-  const disconnect = async () => {
-    setDisconnecting(true);
-    setError(null);
-    try {
-      await fetch('/api/sidecar/ble/disconnect', { method: 'POST' });
-      await fetchHealth();
-    } catch {
-      setError('Disconnect failed');
-    } finally {
-      setDisconnecting(false);
-    }
-  };
-
   return (
     <div style={S.root}>
       {/* Current connection */}
       <div style={S.section}>
         <div style={S.sectionTitle}>BLE connection</div>
         {health ? (
-          <>
-            <div style={S.row}>
-              <span style={S.badge(health.connected)}>{health.connected ? '● connected' : '● disconnected'}</span>
-              {health.device_name && <span style={{ color: '#aaa' }}>{health.device_name}</span>}
-              {health.device_address && <span style={{ color: '#555', fontSize: 10 }}>{health.device_address}</span>}
-            </div>
-            <div style={S.row}>
-              {health.connected && (
-                <button style={S.btn('danger')} onClick={disconnect} disabled={disconnecting}>
-                  {disconnecting ? 'Disconnecting…' : 'Disconnect'}
-                </button>
-              )}
-            </div>
-          </>
+          <div style={S.row}>
+            <span style={S.badge(health.connected && !paused)}>{health.connected && !paused ? '● connected' : '● disconnected'}</span>
+            {health.device_name && <span style={{ color: '#aaa' }}>{health.device_name}</span>}
+            {health.device_address && <span style={{ color: '#555', fontSize: 10 }}>{health.device_address}</span>}
+          </div>
         ) : (
           <span style={S.spinner}>Connecting to sidecar…</span>
         )}

@@ -4,7 +4,7 @@ import LogsPanel from './components/LogsPanel';
 import Simulator from './components/Simulator';
 import Studio, { type StudioNavActions } from './components/Studio';
 
-type Tab = 'simulator' | 'studio' | 'logs' | 'connection';
+type Tab = 'preview' | 'studio' | 'logs' | 'connection';
 
 const tabStyle = (active: boolean): CSSProperties => ({
   background: active ? '#1a3a1a' : '#2a2a2a',
@@ -17,7 +17,7 @@ const tabStyle = (active: boolean): CSSProperties => ({
 });
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('simulator');
+  const [tab, setTab] = useState<Tab>('preview');
   const [studioNav, setStudioNav] = useState<StudioNavActions | null>(null);
   const statusColor = studioNav ? { saved: '#4a8', unsaved: '#a84', saving: '#888', error: '#a44' }[studioNav.saveStatus] : '#888';
 
@@ -41,7 +41,7 @@ export default function App() {
         }}
       >
         <span style={{ fontSize: 12, letterSpacing: 2, color: '#888' }}>iDOTMATRIX DEV TOOLS</span>
-        {(['simulator', 'studio', 'logs', 'connection'] as Tab[]).map((t) => (
+        {(['preview', 'studio', 'logs', 'connection'] as Tab[]).map((t) => (
           <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
             {t}
           </button>
@@ -60,7 +60,7 @@ export default function App() {
           )}
         </div>
       </header>
-      {tab === 'simulator' && <Simulator />}
+      {tab === 'preview' && <Simulator />}
       {tab === 'studio' && <Studio onNavActionsChange={setStudioNav} />}
       {tab === 'logs' && <LogsPanel />}
       {tab === 'connection' && <Connection />}
