@@ -6,8 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { controlState } from './control-state.js';
 import type { BrightnessConfig, NightHours, PowerSchedule } from './control-state.js';
 import { saveRuntimeConfig } from './runtime-config.js';
+import { pixelsToPng } from './render/index.js';
+import { sendToPanel } from './transport/index.js';
+import { config } from './config.js';
 import type { PetBehavior } from './render/pet/types.js';
 import type { WeatherSnapshot } from './weather/index.js';
+
+const BLACK_PNG = pixelsToPng(new Uint8Array(32 * 32 * 3));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UI_DIR = resolve(__dirname, '..', 'dist-dev');
@@ -217,6 +222,13 @@ async function routeControlPause(req: IncomingMessage, res: ServerResponse): Pro
       return;
     }
     controlState.matrixPaused = paused;
+    if (paused) {
+      // Clear the matrix immediately so the display goes dark.
+      sendToPanel(BLACK_PNG, 0).catch(() => { /* matrix may not be connected */ });
+    } else {
+      // Tell the sidecar to forget its last frame so the next send is a full repaint.
+      fetch(`${config.sidecarUrl}/reset-frame`, { method: 'POST' }).catch(() => { /* ignore */ });
+    }
     json(res, 200, { ok: true });
   } catch {
     json(res, 400, { error: 'invalid JSON' });

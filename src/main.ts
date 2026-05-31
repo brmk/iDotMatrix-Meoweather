@@ -12,6 +12,8 @@ import { fetchWeather } from './weather/index.js';
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+// Fixed tick rate for the pet so its movement is decoupled from the weather animation frame rate.
+const PET_TICK_MS = 100;
 
 // ---- Pet state machine ----
 
@@ -97,6 +99,7 @@ async function run(): Promise<void> {
   let frames: AnimationFrame[] = renderAnimation(snapshot);
   let frameIdx = 0;
   let lastFetch = Date.now();
+  let lastWeatherFrame = Date.now();
   let matrixOff = false;
 
   console.log(
@@ -110,6 +113,7 @@ async function run(): Promise<void> {
         controlState.snapshot = snapshot;
         frames = renderAnimation(snapshot);
         frameIdx = 0;
+        lastWeatherFrame = Date.now();
         lastFetch = Date.now();
         console.log(`[${new Date().toISOString()}] weather refreshed: code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay}`);
       } catch (err) {
@@ -137,13 +141,20 @@ async function run(): Promise<void> {
     if (controlState.weatherDirty) {
       frames = renderAnimation(controlState.weatherOverride ?? snapshot);
       frameIdx = 0;
+      lastWeatherFrame = Date.now();
       controlState.weatherDirty = false;
     }
 
     const tickStart = Date.now();
 
+    // Advance weather animation frame based on wall time, independent of pet tick rate.
+    if (tickStart - lastWeatherFrame >= frames[frameIdx % frames.length]!.delayMs) {
+      frameIdx = (frameIdx + 1) % frames.length;
+      lastWeatherFrame = tickStart;
+    }
+
     const effective = controlState.weatherOverride ?? snapshot;
-    const frame = frames[frameIdx % frames.length];
+    const frame = frames[frameIdx % frames.length]!
     const isDay = resolveIsDay(effective.isDay);
     const brightness = isDay ? controlState.brightness.day : controlState.brightness.night;
 
@@ -168,8 +179,7 @@ async function run(): Promise<void> {
     }
 
     const elapsed = Date.now() - tickStart;
-    await sleep(Math.max(0, frame.delayMs - elapsed));
-    frameIdx = (frameIdx + 1) % frames.length;
+    await sleep(Math.max(0, PET_TICK_MS - elapsed));
   }
 }
 

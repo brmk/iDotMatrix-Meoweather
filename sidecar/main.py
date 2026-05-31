@@ -187,6 +187,15 @@ async def health():
     })
 
 
+@app.post("/reset-frame")
+async def reset_frame():
+    """Forget the last-sent frame so the next /display call does a full repaint."""
+    global _prev_frame
+    _prev_frame = None
+    logger.info("Frame state reset — next display will be a full refresh")
+    return {"ok": True}
+
+
 @app.post("/display")
 async def display(file: UploadFile, brightness: int = Form(default=80)):
     data = await file.read()
