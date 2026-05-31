@@ -8,6 +8,7 @@ services:
       DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
       SCAN_TIMEOUT: ${SCAN_TIMEOUT:-15}
       DEVICE_NAME_PREFIX: ${DEVICE_NAME_PREFIX:-IDM}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - /run/dbus:/run/dbus
     healthcheck:

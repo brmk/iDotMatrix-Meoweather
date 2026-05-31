@@ -27,8 +27,9 @@ from idotmatrix.modules.image import ImageMode
 from idotmatrix.screensize import ScreenSize
 from PIL import Image
 
+_LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, _LOG_LEVEL, logging.INFO),
     format="%(asctime)s :: %(levelname)s :: %(name)s :: %(message)s",
     datefmt="%H:%M:%S",
 )
@@ -136,12 +137,17 @@ def _reset_client() -> None:
 
 async def _send_image_packets(client: IDotMatrixClient, packets: list) -> None:
     """Send image packets with ATT write-response ACK but without the extra GATT read."""
-    ble = client._connection_manager.client
+    import time
     from idotmatrix.const import UUID_CHARACTERISTIC_WRITE_DATA
+    ble = client._connection_manager.client
+    total_packets = sum(len(chunk) for chunk in packets)
     for chunk in packets:
         for i, ble_packet in enumerate(chunk):
             last = i == len(chunk) - 1
+            t = time.monotonic()
             await ble.write_gatt_char(UUID_CHARACTERISTIC_WRITE_DATA, ble_packet, response=last)
+            ms = (time.monotonic() - t) * 1000
+            logger.debug(f"  packet {i+1}/{total_packets} response={last} → {ms:.1f}ms")
 
 
 async def _push_frame(
@@ -149,14 +155,27 @@ async def _push_frame(
     new_pixels: list[tuple[int, int, int]],
 ) -> bool:
     """Upload full frame atomically. set_mode is called once on connect, not here."""
+    import time
     global _prev_frame
 
     async with _push_lock:
         if new_pixels == _prev_frame:
             return False
+
+        t0 = time.monotonic()
         pixel_data = bytearray(b for px in new_pixels for b in px)
+        t1 = time.monotonic()
         packets = client.image._create_diy_image_data_packets(pixel_data)
+        t2 = time.monotonic()
         await _send_image_packets(client, packets)
+        t3 = time.monotonic()
+
+        logger.info(
+            f"Frame uploaded — build:{(t1-t0)*1000:.1f}ms "
+            f"pack:{(t2-t1)*1000:.1f}ms "
+            f"send:{(t3-t2)*1000:.1f}ms "
+            f"total:{(t3-t0)*1000:.1f}ms"
+        )
         _prev_frame = new_pixels
         return True
 
@@ -192,12 +211,12 @@ async def health():
 
 
 @app.get("/ble/scan")
-async def ble_scan(timeout: float = 8.0):
+async def ble_scan(scan_timeout: float = 8.0):
     """Scan for nearby BLE devices and return all that have a name."""
-    timeout = max(3.0, min(30.0, timeout))
-    logger.info(f"BLE scan started ({timeout}s)...")
+    scan_timeout = max(3.0, min(30.0, scan_timeout))
+    logger.info(f"BLE scan started ({scan_timeout}s)...")
     try:
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(scan_timeout):
             devices = await BleakScanner.discover(return_adv=True)
     except TimeoutError:
         raise HTTPException(status_code=504, detail="BLE scan timed out")
