@@ -48,6 +48,7 @@ interface LiveState {
   brightness?: { day: number; night: number };
   nightHours?: { from: number; to: number } | null;
   powerSchedule?: { offFrom: number; offTo: number } | null;
+  matrixPaused?: boolean;
 }
 
 const ctrl: CSSProperties = {
@@ -93,6 +94,14 @@ async function postNightHours(from: number | null, to: number | null): Promise<v
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(from === null ? null : { from, to }),
+  });
+}
+
+async function postPause(paused: boolean): Promise<void> {
+  await fetch('/api/control/pause', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paused }),
   });
 }
 
@@ -327,9 +336,9 @@ export default function Simulator() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={{ margin: 0, fontSize: 14, letterSpacing: 2, color: '#888' }}>iDotMatrix 32×32 Simulator</h1>
         {remote && (
-          <span style={{ fontSize: 10, color: '#4a8', letterSpacing: 1, border: '1px solid #2a5', padding: '2px 6px' }}>
-            LIVE ●
-          </span>
+          liveState?.matrixPaused
+            ? <span style={{ fontSize: 10, color: '#a84', letterSpacing: 1, border: '1px solid #864', padding: '2px 6px' }}>⏸ PAUSED</span>
+            : <span style={{ fontSize: 10, color: '#4a8', letterSpacing: 1, border: '1px solid #2a5', padding: '2px 6px' }}>● LIVE</span>
         )}
       </div>
 
@@ -535,6 +544,19 @@ export default function Simulator() {
                 </div>
               )}
             </div>
+
+            <button
+              onClick={() => void postPause(!liveState?.matrixPaused)}
+              style={{
+                ...ctrl,
+                cursor: 'pointer',
+                color: liveState?.matrixPaused ? '#a84' : '#888',
+                borderColor: liveState?.matrixPaused ? '#864' : '#555',
+                background: liveState?.matrixPaused ? '#2a1a00' : '#2a2a2a',
+              }}
+            >
+              {liveState?.matrixPaused ? '▶ Resume matrix' : '⏸ Pause matrix'}
+            </button>
           </div>
         )}
 

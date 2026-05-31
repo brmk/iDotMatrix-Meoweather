@@ -94,6 +94,7 @@ function currentHealth() {
     brightness: controlState.brightness,
     nightHours: controlState.nightHours,
     powerSchedule: controlState.powerSchedule,
+    matrixPaused: controlState.matrixPaused,
   };
 }
 
@@ -207,6 +208,21 @@ async function routeControlNightHours(req: IncomingMessage, res: ServerResponse)
   }
 }
 
+async function routeControlPause(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readBody(req);
+  try {
+    const { paused } = JSON.parse(body) as { paused: boolean };
+    if (typeof paused !== 'boolean') {
+      json(res, 400, { error: 'paused (boolean) required' });
+      return;
+    }
+    controlState.matrixPaused = paused;
+    json(res, 200, { ok: true });
+  } catch {
+    json(res, 400, { error: 'invalid JSON' });
+  }
+}
+
 async function routeControlPowerSchedule(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const body = await readBody(req);
   try {
@@ -262,6 +278,7 @@ async function dispatchPost(req: IncomingMessage, res: ServerResponse, path: str
   if (path === '/api/control/behavior') return routeControlBehavior(req, res);
   if (path === '/api/control/brightness') return routeControlBrightness(req, res);
   if (path === '/api/control/night-hours') return routeControlNightHours(req, res);
+  if (path === '/api/control/pause') return routeControlPause(req, res);
   if (path === '/api/control/power-schedule') return routeControlPowerSchedule(req, res);
   if (path === '/api/control/weather') return routeControlWeather(req, res);
   if (path === '/api/control/weather/clear') {

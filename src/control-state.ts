@@ -36,6 +36,7 @@ export interface ControlState {
   brightness: BrightnessConfig;
   nightHours: NightHours | null;
   powerSchedule: PowerSchedule | null;
+  matrixPaused: boolean;
   logLines: string[];
   logSubs: Set<(line: string) => void>;
   currentFrame: string | null;
@@ -53,6 +54,7 @@ export const controlState: ControlState = {
   brightness: { day: config.dayBrightness, night: config.nightBrightness },
   nightHours: null,
   powerSchedule: null,
+  matrixPaused: false,
   logLines: [],
   logSubs: new Set(),
   currentFrame: null,

@@ -159,10 +159,12 @@ async function run(): Promise<void> {
 
     pushFrame(png.toString('base64'));
 
-    try {
-      await sendToPanel(png, brightness);
-    } catch (err) {
-      console.error('sendToPanel failed:', err);
+    if (!controlState.matrixPaused) {
+      try {
+        await sendToPanel(png, brightness);
+      } catch (err) {
+        console.error('sendToPanel failed:', err);
+      }
     }
 
     const elapsed = Date.now() - tickStart;
