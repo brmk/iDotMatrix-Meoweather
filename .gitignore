@@ -26,6 +26,9 @@ runtime.json
 .idea/
 .vscode/
 
+# Claude Code local settings (personal permissions — not shared)
+.claude/settings.local.json
+
 # Test artefacts
 /tmp/
 out.png
