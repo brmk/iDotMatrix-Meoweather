@@ -44,8 +44,8 @@ interface LiveState {
   humidity: number | null;
   windSpeed: number | null;
   weatherOverride: boolean;
-  brightness: { day: number; night: number };
-  nightHours: { from: number; to: number } | null;
+  brightness?: { day: number; night: number };
+  nightHours?: { from: number; to: number } | null;
 }
 
 const ctrl: CSSProperties = {
@@ -166,7 +166,7 @@ export default function Simulator() {
 
   // Initialise brightness + night-hours controls from server state on first connect.
   useEffect(() => {
-    if (!liveState || brightnessInitRef.current) return;
+    if (!liveState?.brightness || brightnessInitRef.current) return;
     brightnessInitRef.current = true;
     setDayBrightness(liveState.brightness.day);
     setNightBrightness(liveState.brightness.night);

@@ -2,9 +2,11 @@
 
 > One-page mental model for this project. Read this after [[../AGENTS]] to get full context.
 
-A macOS home-server that fetches current weather from the internet and renders it
-as a looping pixel animation on an iDotMatrix 32×32 LED display over Bluetooth.
-The display runs autonomously — no phone app, no cloud, no interaction required.
+A small home-server stack that fetches current weather from the internet and
+renders it as a looping pixel animation on an iDotMatrix 32×32 LED display over
+Bluetooth. Day-to-day development happens on macOS; the repo also ships a
+Raspberry Pi deployment path based on Docker Compose. The display runs
+autonomously — no phone app, no cloud, no interaction required.
 
 ---
 
@@ -33,7 +35,7 @@ The display runs autonomously — no phone app, no cloud, no interaction require
 ## Data flow
 
 ```
-┌─────────────────────────── macOS host (awake, in BLE range) ───────────────────────────┐
+┌──────────────────────────── local host (awake, in BLE range) ───────────────────────────┐
 │                                                                                          │
 │   Open-Meteo API                                                                         │
 │        │  HTTPS                                                                          │
@@ -48,7 +50,7 @@ The display runs autonomously — no phone app, no cloud, no interaction require
 │                                              ▼                                           │
 │   ┌─────────────────────────── Python sidecar (bleak) ─────────────────────────┐        │
 │   │  FastAPI: /display, /health                                                 │        │
-│   │  idotmatrix-api-client → CoreBluetooth                                     │        │
+│   │  idotmatrix-api-client → host BLE stack                                    │        │
 │   └─────────────────────────────────────────┬───────────────────────────────────┘        │
 │                                              │  BLE GATT (~20-byte packets, chunked)     │
 │                                              ▼                                           │
@@ -74,13 +76,16 @@ Full component detail: [[ARCHITECTURE]]
 
 ## Runtime constraints
 
-- Host OS: **macOS**. BLE goes through CoreBluetooth via `bleak`.
-- **No visible MAC address** — CoreBluetooth exposes a per-Mac random UUID.
+- Supported dev host: **macOS**. The documented production deployment path is
+  **Linux / Raspberry Pi via Docker Compose**.
+- On macOS, `bleak` uses CoreBluetooth and exposes a per-Mac random UUID.
   Discover by name (`IDM-` prefix), never by hardcoded UUID.
-- Mac must be awake and within BLE range. No cloud path; local-only.
-- The terminal running the sidecar needs macOS Bluetooth permission
+- The host must be awake and within BLE range. No cloud path; local-only.
+- On macOS, the terminal running the sidecar needs Bluetooth permission
   (System Settings → Privacy & Security → Bluetooth). A silent "device not found"
   almost always means this permission is missing.
+- On Raspberry Pi, the sidecar container needs host networking and D-Bus access
+  to the host Bluetooth stack.
 - BLE GATT writes are ~20 bytes; the library chunks images automatically.
 
 ---
@@ -118,6 +123,9 @@ Phase 6 is complete. Post-phase pet enhancements (2026-05-25):
   `syncBehaviorConfigRuntime` mutations from poisoning `defaultBehaviorConfig()`;
   `mergeWithDefaults` fills missing localStorage keys from code defaults;
   `vite.config.ts` generators updated for BURP/POO sprites and residue TTL fields.
+- **Deployment path** — the repo now includes Raspberry Pi deployment assets:
+  `Dockerfile.app`, `Dockerfile.sidecar`, `compose.rpi.yml`, deploy scripts, and
+  a GitHub Actions workflow for compose-based rollout via a self-hosted runner.
 
 ---
 
@@ -133,4 +141,5 @@ Phase 6 is complete. Post-phase pet enhancements (2026-05-25):
 | Pixel animation bugs to avoid? | [[adr/0006-perch-behavior-and-state-machine-lessons]] |
 | Full component diagram? | [[ARCHITECTURE]] |
 | How to run right now? | [[RUNBOOK]] |
+| Why Raspberry Pi deploy uses Compose + Actions? | [[adr/0007-raspberry-pi-compose-deployment]] |
 | What's next? | [[ROADMAP]] |

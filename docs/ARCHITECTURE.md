@@ -11,7 +11,7 @@ sidecar and do everything else in TypeScript.
 → [[adr/0001-language-split-ts-python-sidecar]]
 
 ```
-┌─────────────────────────── macOS host (awake, in BLE range) ───────────────────────────┐
+┌──────────────────────────── local host (awake, in BLE range) ───────────────────────────┐
 │                                                                                          │
 │   Open-Meteo API                                                                         │
 │        │  HTTPS                                                                          │
@@ -25,8 +25,8 @@ sidecar and do everything else in TypeScript.
 │                                              │  HTTP (localhost): POST /display (PNG)     │
 │                                              ▼                                            │
 │   ┌─────────────────────────── Python sidecar (bleak) ─────────────────────────┐        │
-│   │  FastAPI/Flask: /display, /health                                          │        │
-│   │  idotmatrix-api-client → CoreBluetooth                                     │        │
+│   │  FastAPI: /display, /health                                                │        │
+│   │  idotmatrix-api-client → host BLE stack                                   │        │
 │   └─────────────────────────────────────────┬───────────────────────────────────┘        │
 │                                              │  BLE GATT (~20-byte packets, chunked)      │
 │                                              ▼                                            │
@@ -77,6 +77,20 @@ The only component that touches Bluetooth. Wraps `idotmatrix-api-client`, owns
 the connection lifecycle, exposes `/display` and `/health`. Treat it as a
 sealed appliance: a PNG goes in, the panel updates.
 
+## Deployment shape
+
+There are now two first-class runtime envelopes:
+
+- **macOS development runtime** — `npm run dev`, separate local processes,
+  launchd helper for background running
+- **Raspberry Pi production runtime** — `docker compose` stack with two images:
+  `app` (TypeScript scheduler/renderer) and `sidecar` (BLE bridge)
+
+The production compose stack is intentionally image-based. GitHub Actions builds
+ARM64 images, pushes them to GHCR, and a self-hosted runner on the Pi syncs the
+repo and restarts the stack. Boot-time startup is delegated to a user-level
+`systemd` unit that runs `docker compose up -d`.
+
 ## Boundaries and why they exist
 
 - **TS ↔ Python over HTTP**, not FFI or a child-process pipe, so each side can be
@@ -90,11 +104,15 @@ sealed appliance: a PNG goes in, the panel updates.
   covered by unit tests, hash-based regression tests for representative scenes,
   and enforced global coverage thresholds in Vitest so visual drift is caught
   without hardware.
+- **Production deployment stays repo-defined.** Dockerfiles, compose, deploy
+  scripts, and the Actions workflow live with the app code so the Pi can be
+  rebuilt from repo state instead of ad-hoc host mutations.
 
 ## Non-goals (for the MVP)
 
 - No remote/cloud control — BLE requires physical proximity.
-- No 24/7 uptime — the Mac is the host; it runs when it runs.
+- No cloud control plane for the panel — deployment can be remote, but BLE still
+  requires the physical host to stay near the display.
 - No protocol re-implementation in TypeScript.
 - No multi-device support.
 
@@ -103,7 +121,9 @@ sealed appliance: a PNG goes in, the panel updates.
 1. **Device firmware variance.** "iDotMatrix 32×32 from AliExpress" is a family,
    not one model. The library may connect but mis-handle some commands. This is
    why Phase 0 validates against the *real* unit before any code is written.
-2. **macOS BLE addressing.** No MAC address is exposed; discover by name.
-3. **Library maintenance.** The upstream library is a single-maintainer fork
+2. **Linux container BLE access.** The Raspberry Pi sidecar container depends on
+   host D-Bus / Bluetooth access and is less isolated than a normal web app.
+3. **macOS BLE addressing.** No MAC address is exposed; discover by name.
+4. **Library maintenance.** The upstream library is a single-maintainer fork
    (the original author stepped back). It works, but it is not enterprise-grade.
    Pin the version once Phase 0 succeeds.

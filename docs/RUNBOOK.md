@@ -25,6 +25,45 @@ npm run start:sidecar
 npm start
 ```
 
+## Raspberry Pi deployment (Docker Compose)
+
+The repo includes a production deployment path for a Raspberry Pi host running
+Docker. It keeps the app as two containers:
+
+- `app` — TypeScript scheduler / renderer
+- `sidecar` — Python BLE bridge
+
+One-time host prep on the Pi:
+
+1. Install Docker Engine with Compose support.
+2. Add your user to the `docker` group.
+3. Install a self-hosted GitHub Actions runner on the Pi if you want push-based
+   deploys from GitHub.
+4. Enable user lingering once if you want startup before login:
+   ```bash
+   sudo loginctl enable-linger "$USER"
+   ```
+
+Initial deployment:
+
+```bash
+cp .env.example .env
+cp deploy/rpi/compose.env.example deploy/rpi/compose.env
+# edit both files for your coordinates and GHCR image namespace
+
+./scripts/deploy-rpi.sh
+./scripts/install-rpi-user-service.sh
+```
+
+Manual update on the Pi:
+
+```bash
+./scripts/deploy-rpi.sh
+```
+
+The compose stack uses `network_mode: host` and mounts `/run/dbus` because the
+BLE sidecar talks to the host Bluetooth stack through D-Bus.
+
 ## Code quality commands
 
 ```bash
@@ -96,6 +135,8 @@ service alive and restarts it (30 s throttle) on crash. Logs go to
 | `LATITUDE` / `LONGITUDE` | 49.5535 / 25.5948 | Your coordinates |
 | `INTERVAL_SECONDS` | 600 | How often to fetch + render + push |
 | `SIDECAR_URL` | `http://127.0.0.1:8765` | Local sidecar address |
+| `SCAN_TIMEOUT` | `15` | BLE discovery timeout for the Python sidecar |
+| `DEVICE_NAME_PREFIX` | `IDM` | BLE name prefix to match during discovery |
 | `DAY_BRIGHTNESS` | 80 | Panel brightness when `isDay = true` (0–100) |
 | `NIGHT_BRIGHTNESS` | 25 | Panel brightness at night (0–100) |
 
@@ -111,6 +152,13 @@ curl http://localhost:8765/health
 ```
 
 Sidecar needs ~18 s after startup for the BLE scan to complete.
+
+For the Raspberry Pi compose stack, run the same check on the host after
+`docker compose up -d`:
+
+```bash
+curl http://127.0.0.1:8765/health
+```
 
 ## Test PNG generation
 
@@ -140,6 +188,8 @@ normal test runs.
   app (BLE allows one central at a time). Disconnect the vendor app first.
 - **Connects then drops** — expected occasionally over BLE; Phase 4 added
   automatic retry with backoff. No manual sidecar restart needed.
+- **Pi container cannot see Bluetooth** — confirm the sidecar service is running
+  with host networking, `/run/dbus` mounted, and the host Bluetooth stack is up.
 - **Image wrong on panel but `out.png` looks fine** — the problem is in the
   sidecar's PNG→panel step, not the renderer. Debug sidecar with `curl` alone.
 - **Image wrong in `out.png` too** — it's the renderer; fix without the panel.

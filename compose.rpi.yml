@@ -7,6 +7,7 @@ services:
     environment:
       DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
       SCAN_TIMEOUT: ${SCAN_TIMEOUT:-15}
+      DEVICE_NAME_PREFIX: ${DEVICE_NAME_PREFIX:-IDM}
     volumes:
       - /run/dbus:/run/dbus
     healthcheck:
@@ -33,3 +34,5 @@ services:
       - .env
     environment:
       SIDECAR_URL: http://127.0.0.1:8765
+    volumes:
+      - ./runtime.json:/app/runtime.json

@@ -35,7 +35,7 @@ logging.basicConfig(
 logging.getLogger("bleak").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-DEVICE_NAME_PREFIX = "IDM-"
+DEVICE_NAME_PREFIX = os.environ.get("DEVICE_NAME_PREFIX", "IDM")
 SCAN_TIMEOUT = float(os.environ.get("SCAN_TIMEOUT", "15"))
 EXPECTED_SIZE = 32
 GRAFFITI_CHUNK = 255  # max pixels per set_pixels call
