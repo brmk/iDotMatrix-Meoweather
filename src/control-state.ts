@@ -1,7 +1,7 @@
+import { DEFAULTS } from './defaults.js';
 import type { PetContext } from './pet/index.js';
 import type { PetBehavior, PetState } from './render/pet/types.js';
 import type { WeatherSnapshot } from './weather/index.js';
-import { DEFAULTS } from './defaults.js';
 
 export interface BehaviorOverride {
   behavior: PetBehavior;
@@ -37,8 +37,6 @@ export interface ControlState {
   nightHours: NightHours | null;
   powerSchedule: PowerSchedule | null;
   matrixPaused: boolean;
-  logLines: string[];
-  logSubs: Set<(line: string) => void>;
   currentFrame: string | null;
   frameSubs: Set<(frame: string) => void>;
 }
@@ -55,8 +53,6 @@ export const controlState: ControlState = {
   nightHours: null,
   powerSchedule: null,
   matrixPaused: false,
-  logLines: [],
-  logSubs: new Set(),
   currentFrame: null,
   frameSubs: new Set(),
 };

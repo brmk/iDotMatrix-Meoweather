@@ -187,6 +187,81 @@ async def health():
     })
 
 
+@app.get("/ble/scan")
+async def ble_scan(timeout: float = 8.0):
+    """Scan for nearby BLE devices and return all that have a name."""
+    timeout = max(3.0, min(30.0, timeout))
+    logger.info(f"BLE scan started ({timeout}s)...")
+    try:
+        async with asyncio.timeout(timeout + 2):
+            devices = await BleakScanner.discover(return_adv=True)
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="BLE scan timed out")
+
+    results = []
+    for address, (device, adv) in devices.items():
+        name = adv.local_name or device.name or ""
+        if not name:
+            continue
+        results.append({
+            "address": address,
+            "name": name,
+            "is_idm": name.startswith(DEVICE_NAME_PREFIX),
+            "is_connected": address == _device_address and _client is not None and _client._connection_manager.is_connected(),
+        })
+
+    results.sort(key=lambda d: (not d["is_idm"], d["name"]))
+    logger.info(f"BLE scan complete — {len(results)} named devices found")
+    return JSONResponse({"devices": results})
+
+
+@app.post("/ble/connect")
+async def ble_connect_device(body: dict):
+    """Disconnect from current device and connect to the specified address."""
+    global _client, _device_address, _device_name, _prev_frame
+
+    address = body.get("address")
+    name = body.get("name", address)
+    if not address:
+        raise HTTPException(status_code=400, detail="address required")
+
+    async with _connect_lock:
+        if _client is not None:
+            try:
+                await _client._connection_manager.disconnect()
+            except Exception:
+                pass
+            _client = None
+            _prev_frame = None
+
+        _device_address = address
+        _device_name = name
+
+    logger.info(f"Connecting to {name!r} ({address}) via /ble/connect...")
+    try:
+        await _ensure_connected()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "address": address, "name": name}
+
+
+@app.post("/ble/disconnect")
+async def ble_disconnect():
+    """Gracefully disconnect from the BLE panel and release the connection."""
+    global _client, _prev_frame
+    async with _connect_lock:
+        if _client is not None:
+            try:
+                await _client._connection_manager.disconnect()
+                logger.info("BLE disconnected (pause requested)")
+            except Exception:
+                pass
+            _client = None
+            _prev_frame = None
+    return {"ok": True}
+
+
 @app.post("/reset-frame")
 async def reset_frame():
     """Forget the last-sent frame so the next /display call does a full repaint."""

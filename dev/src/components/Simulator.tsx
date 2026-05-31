@@ -168,7 +168,9 @@ export default function Simulator() {
       .then((data) => {
         if (data?.ok) setRemote(true);
       })
-      .catch(() => {/* local-only mode */});
+      .catch(() => {
+        /* local-only mode */
+      });
   }, []);
 
   // Subscribe to SSE state stream when remote (behavior + weather status).
@@ -191,7 +193,9 @@ export default function Simulator() {
 
   const markEditing = useCallback((field: string) => {
     clearTimeout(editingRef.current[field]);
-    editingRef.current[field] = setTimeout(() => { delete editingRef.current[field]; }, 2000);
+    editingRef.current[field] = setTimeout(() => {
+      delete editingRef.current[field];
+    }, 2000);
   }, []);
 
   // Sync numeric values from server state; skip fields the user is actively editing.
@@ -335,11 +339,12 @@ export default function Simulator() {
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={{ margin: 0, fontSize: 14, letterSpacing: 2, color: '#888' }}>iDotMatrix 32×32 Simulator</h1>
-        {remote && (
-          liveState?.matrixPaused
-            ? <span style={{ fontSize: 10, color: '#a84', letterSpacing: 1, border: '1px solid #864', padding: '2px 6px' }}>⏸ PAUSED</span>
-            : <span style={{ fontSize: 10, color: '#4a8', letterSpacing: 1, border: '1px solid #2a5', padding: '2px 6px' }}>● LIVE</span>
-        )}
+        {remote &&
+          (liveState?.matrixPaused ? (
+            <span style={{ fontSize: 10, color: '#a84', letterSpacing: 1, border: '1px solid #864', padding: '2px 6px' }}>⏸ PAUSED</span>
+          ) : (
+            <span style={{ fontSize: 10, color: '#4a8', letterSpacing: 1, border: '1px solid #2a5', padding: '2px 6px' }}>● LIVE</span>
+          ))}
       </div>
 
       <canvas
@@ -351,8 +356,7 @@ export default function Simulator() {
 
       {remote && liveState ? (
         <div style={{ fontSize: 10, color: '#4a8', letterSpacing: 1 }}>
-          matrix: {liveState.behavior ?? '…'} · tick {liveState.tick} · {liveState.weatherCode}{' '}
-          {liveState.temperature}°C {liveState.isDay ? 'day' : 'night'}
+          matrix: {liveState.behavior ?? '…'} · tick {liveState.tick} · {liveState.weatherCode} {liveState.temperature}°C {liveState.isDay ? 'day' : 'night'}
           {liveState.weatherOverride && ' · weather overridden'}
         </div>
       ) : (
@@ -373,14 +377,7 @@ export default function Simulator() {
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
           Temp (°C)
-          <input
-            type="number"
-            value={temp}
-            min={-30}
-            max={50}
-            style={{ ...ctrl, width: 64 }}
-            onChange={(e) => handleTemp(Number(e.target.value))}
-          />
+          <input type="number" value={temp} min={-30} max={50} style={{ ...ctrl, width: 64 }} onChange={(e) => handleTemp(Number(e.target.value))} />
         </label>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
@@ -391,10 +388,7 @@ export default function Simulator() {
         {remote && liveState?.weatherOverride && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
             &nbsp;
-            <button
-              onClick={() => void clearWeather()}
-              style={{ ...ctrl, color: '#fa8', borderColor: '#a64', cursor: 'pointer' }}
-            >
+            <button onClick={() => void clearWeather()} style={{ ...ctrl, color: '#fa8', borderColor: '#a64', cursor: 'pointer' }}>
               Use real weather
             </button>
           </label>
@@ -403,15 +397,7 @@ export default function Simulator() {
         {!remote && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#888' }}>
             Speed ×{speed.toFixed(2)}
-            <input
-              type="range"
-              min={0.25}
-              max={4}
-              step={0.25}
-              value={speed}
-              onChange={(e) => setSpeed(Number(e.target.value))}
-              style={{ width: 110 }}
-            />
+            <input type="range" min={0.25} max={4} step={0.25} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} style={{ width: 110 }} />
           </label>
         )}
 

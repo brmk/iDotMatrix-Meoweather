@@ -3,19 +3,17 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { controlState } from './control-state.js';
-import type { BrightnessConfig, NightHours, PowerSchedule } from './control-state.js';
-import { saveRuntimeConfig } from './runtime-config.js';
-import { pixelsToPng } from './render/index.js';
-import { sendToPanel } from './transport/index.js';
 import { config } from './config.js';
+import type { BrightnessConfig, NightHours, PowerSchedule } from './control-state.js';
+import { controlState } from './control-state.js';
+import { logStore } from './log-store.js';
 import type { PetBehavior } from './render/pet/types.js';
+import { saveRuntimeConfig } from './runtime-config.js';
 import type { WeatherSnapshot } from './weather/index.js';
-
-const BLACK_PNG = pixelsToPng(new Uint8Array(32 * 32 * 3));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UI_DIR = resolve(__dirname, '..', 'dist-dev');
+const LOG_STREAM_HEARTBEAT_MS = 15_000;
 
 const BEHAVIOR_DUR: Record<string, number> = {
   walk: 0,
@@ -66,6 +64,12 @@ function sseStart(res: ServerResponse): void {
     Connection: 'keep-alive',
     'Access-Control-Allow-Origin': '*',
   });
+}
+
+function sseEvent(res: ServerResponse, event: string | null, data?: unknown): void {
+  if (event) res.write(`event: ${event}\n`);
+  if (data !== undefined) res.write(`data: ${JSON.stringify(data)}\n`);
+  res.write('\n');
 }
 
 function serveFile(res: ServerResponse, filePath: string): boolean {
@@ -125,12 +129,12 @@ function routeState(req: IncomingMessage, res: ServerResponse): void {
 
 function routeFrame(req: IncomingMessage, res: ServerResponse): void {
   sseStart(res);
-  if (controlState.currentFrame) {
-    res.write(`data: ${controlState.currentFrame}\n\n`);
-  }
+  // Frame data is raw base64 — write directly without JSON.stringify.
+  const writeFrame = (frame: string) => res.write(`data: ${frame}\n\n`);
+  if (controlState.currentFrame) writeFrame(controlState.currentFrame);
   const sub = (frame: string) => {
     try {
-      res.write(`data: ${frame}\n\n`);
+      writeFrame(frame);
     } catch {
       controlState.frameSubs.delete(sub);
     }
@@ -139,20 +143,48 @@ function routeFrame(req: IncomingMessage, res: ServerResponse): void {
   req.on('close', () => controlState.frameSubs.delete(sub));
 }
 
-function routeLogs(req: IncomingMessage, res: ServerResponse): void {
+function parseIntParam(value: string | null): number | undefined {
+  if (value === null || value.trim() === '') return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function routeLogsSnapshot(res: ServerResponse, url: URL): void {
+  const afterId = parseIntParam(url.searchParams.get('after'));
+  const limit = parseIntParam(url.searchParams.get('limit'));
+  json(res, 200, logStore.list({ afterId, limit }));
+}
+
+function routeLogsStream(req: IncomingMessage, res: ServerResponse, url: URL, heartbeatMs = LOG_STREAM_HEARTBEAT_MS): void {
   sseStart(res);
-  for (const line of controlState.logLines) {
-    res.write(`data: ${JSON.stringify(line)}\n\n`);
+
+  const afterId = parseIntParam(url.searchParams.get('after'));
+  const snapshot = logStore.list({ afterId, limit: 1 });
+  if (snapshot.resetRequired) {
+    sseEvent(res, 'reset');
   }
-  const sub = (line: string) => {
+
+  const unsubscribe = logStore.subscribe((entry) => {
     try {
-      res.write(`data: ${JSON.stringify(line)}\n\n`);
+      sseEvent(res, null, entry);
     } catch {
-      controlState.logSubs.delete(sub);
+      unsubscribe();
     }
-  };
-  controlState.logSubs.add(sub);
-  req.on('close', () => controlState.logSubs.delete(sub));
+  });
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch {
+      unsubscribe();
+      clearInterval(heartbeat);
+    }
+  }, heartbeatMs);
+
+  req.on('close', () => {
+    unsubscribe();
+    clearInterval(heartbeat);
+  });
 }
 
 async function routeControlBehavior(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -223,11 +255,16 @@ async function routeControlPause(req: IncomingMessage, res: ServerResponse): Pro
     }
     controlState.matrixPaused = paused;
     if (paused) {
-      // Clear the matrix immediately so the display goes dark.
-      sendToPanel(BLACK_PNG, 0).catch(() => { /* matrix may not be connected */ });
+      // Disconnect BLE so another client (e.g. local dev machine) can connect.
+      fetch(`${config.sidecarUrl}/ble/disconnect`, { method: 'POST' }).catch(() => {
+        /* ignore */
+      });
     } else {
       // Tell the sidecar to forget its last frame so the next send is a full repaint.
-      fetch(`${config.sidecarUrl}/reset-frame`, { method: 'POST' }).catch(() => { /* ignore */ });
+      // The sidecar will reconnect automatically on the first /display request.
+      fetch(`${config.sidecarUrl}/reset-frame`, { method: 'POST' }).catch(() => {
+        /* ignore */
+      });
     }
     json(res, 200, { ok: true });
   } catch {
@@ -269,6 +306,11 @@ async function routeControlWeather(req: IncomingMessage, res: ServerResponse): P
 }
 
 function routeStatic(res: ServerResponse, path: string): void {
+  if (process.env.NODE_ENV === 'development') {
+    res.writeHead(404);
+    res.end('Dev mode: open the Vite dev server instead');
+    return;
+  }
   const candidate = path === '/' ? 'index.html' : path.slice(1);
   if (serveFile(res, resolve(UI_DIR, candidate))) return;
   if (serveFile(res, resolve(UI_DIR, 'index.html'))) return;
@@ -278,11 +320,33 @@ function routeStatic(res: ServerResponse, path: string): void {
 
 // ---- Dispatcher ----
 
-function dispatchGet(req: IncomingMessage, res: ServerResponse, path: string): void {
+async function proxySidecar(res: ServerResponse, sidePath: string, method: 'GET' | 'POST', body?: unknown): Promise<void> {
+  try {
+    const init: RequestInit = { method };
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+      init.headers = { 'Content-Type': 'application/json' };
+    }
+    const r = await fetch(`${config.sidecarUrl}${sidePath}`, init);
+    const data: unknown = await r.json();
+    json(res, r.ok ? 200 : 502, data);
+  } catch {
+    json(res, 503, { error: 'sidecar unavailable' });
+  }
+}
+
+function dispatchGet(req: IncomingMessage, res: ServerResponse, url: URL, heartbeatMs: number): void {
+  const path = url.pathname;
   if (path === '/api/health') return routeHealth(res);
   if (path === '/api/state') return routeState(req, res);
   if (path === '/api/frame') return routeFrame(req, res);
-  if (path === '/api/logs') return routeLogs(req, res);
+  if (path === '/api/logs') return routeLogsSnapshot(res, url);
+  if (path === '/api/logs/stream') return routeLogsStream(req, res, url, heartbeatMs);
+  if (path.startsWith('/api/sidecar/')) {
+    const sidePath = '/' + path.slice('/api/sidecar/'.length);
+    proxySidecar(res, sidePath, 'GET').catch(() => json(res, 503, { error: 'sidecar unavailable' }));
+    return;
+  }
   return routeStatic(res, path);
 }
 
@@ -299,29 +363,41 @@ async function dispatchPost(req: IncomingMessage, res: ServerResponse, path: str
     json(res, 200, { ok: true });
     return;
   }
+  if (path.startsWith('/api/sidecar/')) {
+    const sidePath = '/' + path.slice('/api/sidecar/'.length);
+    const body = await readBody(req);
+    const parsed = body ? (JSON.parse(body) as unknown) : undefined;
+    return proxySidecar(res, sidePath, 'POST', parsed);
+  }
   json(res, 404, { error: 'not found' });
 }
 
-async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const path = new URL(req.url ?? '/', 'http://localhost').pathname;
-  const method = req.method ?? 'GET';
+export function createRequestHandler(options: { logStreamHeartbeatMs?: number } = {}) {
+  const heartbeatMs = options.logStreamHeartbeatMs ?? LOG_STREAM_HEARTBEAT_MS;
 
-  if (method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    });
-    res.end();
-    return;
-  }
+  return async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const path = url.pathname;
+    const method = req.method ?? 'GET';
 
-  if (method === 'GET') return dispatchGet(req, res, path);
-  if (method === 'POST') return dispatchPost(req, res, path);
-  json(res, 404, { error: 'not found' });
+    if (method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      });
+      res.end();
+      return;
+    }
+
+    if (method === 'GET') return dispatchGet(req, res, url, heartbeatMs);
+    if (method === 'POST') return dispatchPost(req, res, path);
+    json(res, 404, { error: 'not found' });
+  };
 }
 
 export function startControlServer(port = 3000): void {
+  const handleRequest = createRequestHandler();
   const server = createServer((req, res) => {
     handleRequest(req, res).catch((err: unknown) => {
       console.error('control server error:', err);

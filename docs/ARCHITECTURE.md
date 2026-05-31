@@ -68,6 +68,14 @@ compatibility barrels were removed once the refactor stabilized.
 A plain interval loop: fetch → render → hand to transport. No cron daemon
 needed for the MVP.
 
+### control/logs (TypeScript)
+The local control server also exposes dev/runtime observability endpoints for
+the React tools UI. App logs are captured into a bounded in-memory `LogStore`
+with cursor-based snapshot reads (`GET /api/logs`) and live tail SSE
+(`GET /api/logs/stream`). This is intentionally recent-history-only: it avoids
+unbounded memory growth during long uptimes, but does not persist logs across
+restarts and does not include Python sidecar logs.
+
 ### transport/ (TypeScript)
 Knows the sidecar's HTTP contract (ADR-0002) and nothing about Bluetooth. Sends
 the PNG, surfaces sidecar errors. This is the TS side of the language boundary.

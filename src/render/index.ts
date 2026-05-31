@@ -71,10 +71,7 @@ for (let y = 0; y < DISPLAY_HEIGHT; y++) RAW_BUF[y * ROW_STRIDE] = 0; // filter 
 
 function rgbToPng(rgb: Uint8Array): Buffer {
   for (let y = 0; y < DISPLAY_HEIGHT; y++) {
-    RAW_BUF.set(
-      rgb.subarray(y * DISPLAY_WIDTH * RGB_CHANNELS, (y + 1) * DISPLAY_WIDTH * RGB_CHANNELS),
-      y * ROW_STRIDE + 1,
-    );
+    RAW_BUF.set(rgb.subarray(y * DISPLAY_WIDTH * RGB_CHANNELS, (y + 1) * DISPLAY_WIDTH * RGB_CHANNELS), y * ROW_STRIDE + 1);
   }
   const idat = buildChunk('IDAT', deflateSync(RAW_BUF, { level: 1 }));
   return Buffer.concat([PNG_SIG, IHDR_CHUNK, idat, IEND_CHUNK]);

@@ -5,7 +5,6 @@ try {
   void 0;
 }
 
-
 function env(key: string, fallback: string): string {
   return process.env[key] ?? fallback;
 }

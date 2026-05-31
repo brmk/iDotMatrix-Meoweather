@@ -11,6 +11,7 @@ A pixel cat 🐱 lives on the display and wanders around between weather updates
 ## Features
 
 ### 🌤️ Weather display
+
 - **9 animated weather scenes** — clear day, clear night, partly cloudy, cloudy, fog, rain, heavy rain, snow, thunderstorm
 - **Smooth animations** — each scene loops with 6–12 frames; only changed pixels are sent over BLE, so the panel never flashes
 - **Live temperature** — rendered in a custom pixel font
@@ -18,18 +19,19 @@ A pixel cat 🐱 lives on the display and wanders around between weather updates
 - **Automatic refresh** — fetches weather from [Open-Meteo](https://open-meteo.com/) on a configurable interval (default: every 10 minutes)
 
 ### 🐾 Pixel pet
+
 A 5-pixel-wide cat overlaid on every frame. It has a full behaviour state machine:
 
-| Behaviour | Description |
-|-----------|-------------|
-| walk | Strolls back and forth, blinks occasionally |
-| sit | Sits and breathes |
-| lie | Flops down |
-| jump | Leaps and lands |
-| perch | Climbs to a weather icon and sits on top |
-| dream | Sleeps with floating dream bubbles |
-| burp | Special move — leaves a little residue |
-| poo | Special move — also leaves a little residue |
+| Behaviour | Description                                 |
+| --------- | ------------------------------------------- |
+| walk      | Strolls back and forth, blinks occasionally |
+| sit       | Sits and breathes                           |
+| lie       | Flops down                                  |
+| jump      | Leaps and lands                             |
+| perch     | Climbs to a weather icon and sits on top    |
+| dream     | Sleeps with floating dream bubbles          |
+| burp      | Special move — leaves a little residue      |
+| poo       | Special move — also leaves a little residue |
 
 Day and night have different behaviour weights (night is calmer: more dreaming, less jumping).
 
@@ -37,18 +39,18 @@ Day and night have different behaviour weights (night is calmer: more dreaming, 
 
 A local HTTP server (port 3000) exposes a REST API and a web UI for live control:
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/health` | Current state: weather, pet behaviour, brightness, schedules |
-| `GET /api/state` | Server-sent events stream of the health object |
-| `GET /api/frame` | Server-sent events stream of the current rendered frame (base64 PNG) |
-| `GET /api/logs` | Live log stream |
-| `POST /api/control/brightness` | Set day/night brightness (0–100) |
-| `POST /api/control/night-hours` | Configure dimming window |
-| `POST /api/control/power-schedule` | Auto on/off by hour of day |
-| `POST /api/control/behavior` | Force the pet into a specific behaviour |
-| `POST /api/control/weather` | Override the weather (useful for testing) |
-| `POST /api/control/pause` | Pause/resume rendering |
+| Endpoint                           | Description                                                          |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| `GET /api/health`                  | Current state: weather, pet behaviour, brightness, schedules         |
+| `GET /api/state`                   | Server-sent events stream of the health object                       |
+| `GET /api/frame`                   | Server-sent events stream of the current rendered frame (base64 PNG) |
+| `GET /api/logs`                    | Live log stream                                                      |
+| `POST /api/control/brightness`     | Set day/night brightness (0–100)                                     |
+| `POST /api/control/night-hours`    | Configure dimming window                                             |
+| `POST /api/control/power-schedule` | Auto on/off by hour of day                                           |
+| `POST /api/control/behavior`       | Force the pet into a specific behaviour                              |
+| `POST /api/control/weather`        | Override the weather (useful for testing)                            |
+| `POST /api/control/pause`          | Pause/resume rendering                                               |
 
 ### 🛠️ Developer tools
 
@@ -66,11 +68,11 @@ A local HTTP server (port 3000) exposes a REST API and a web UI for live control
 
 ### 🚀 Deployment
 
-| Target | How |
-|--------|-----|
-| macOS (dev) | `npm run dev` — sidecar + TypeScript with hot-reload |
-| macOS (background) | `npm run service:install` — launchd Login Item, auto-restarts on crash |
-| Raspberry Pi | Docker Compose — two containers (`app` + `sidecar`), push-based deploy via GitHub Actions self-hosted runner |
+| Target             | How                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| macOS (dev)        | `npm run dev` — sidecar + TypeScript with hot-reload                                                         |
+| macOS (background) | `npm run service:install` — launchd Login Item, auto-restarts on crash                                       |
+| Raspberry Pi       | Docker Compose — two containers (`app` + `sidecar`), push-based deploy via GitHub Actions self-hosted runner |
 
 ---
 
@@ -173,15 +175,15 @@ cp .env.example .env
 
 All variables are read from `.env` (copy from `.env.example`). All have sensible defaults.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LATITUDE` / `LONGITUDE` | `49.5535` / `25.5948` | Your location |
-| `INTERVAL_SECONDS` | `600` | Weather refresh interval |
-| `SIDECAR_URL` | `http://127.0.0.1:8765` | Local sidecar address |
-| `DEVICE_NAME_PREFIX` | `IDM` | BLE name prefix used for discovery |
-| `SCAN_TIMEOUT` | `15` | BLE discovery timeout (seconds) |
-| `DAY_BRIGHTNESS` | `80` | Panel brightness during the day (0–100) |
-| `NIGHT_BRIGHTNESS` | `25` | Panel brightness at night (0–100) |
+| Variable                 | Default                 | Description                             |
+| ------------------------ | ----------------------- | --------------------------------------- |
+| `LATITUDE` / `LONGITUDE` | `49.5535` / `25.5948`   | Your location                           |
+| `INTERVAL_SECONDS`       | `600`                   | Weather refresh interval                |
+| `SIDECAR_URL`            | `http://127.0.0.1:8765` | Local sidecar address                   |
+| `DEVICE_NAME_PREFIX`     | `IDM`                   | BLE name prefix used for discovery      |
+| `SCAN_TIMEOUT`           | `15`                    | BLE discovery timeout (seconds)         |
+| `DAY_BRIGHTNESS`         | `80`                    | Panel brightness during the day (0–100) |
+| `NIGHT_BRIGHTNESS`       | `25`                    | Panel brightness at night (0–100)       |
 
 Brightness and night-hours settings persist across restarts in `runtime.json` and can be updated at runtime via the control API.
 
@@ -209,14 +211,14 @@ docs/          # Architecture, runbook, ADRs
 
 ## Tech stack
 
-| Layer | Tech |
-|-------|------|
-| App | TypeScript / Node.js |
-| BLE bridge | Python, FastAPI, [bleak](https://github.com/hbldh/bleak), [idotmatrix-api-client](https://github.com/markusressel/idotmatrix-api-client) |
-| Weather data | [Open-Meteo](https://open-meteo.com/) (free, no API key) |
-| Dev UI | Vite + React |
-| Tests | Vitest (unit + deterministic render regression) |
-| Production deploy | Docker Compose + GitHub Actions |
+| Layer             | Tech                                                                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| App               | TypeScript / Node.js                                                                                                                     |
+| BLE bridge        | Python, FastAPI, [bleak](https://github.com/hbldh/bleak), [idotmatrix-api-client](https://github.com/markusressel/idotmatrix-api-client) |
+| Weather data      | [Open-Meteo](https://open-meteo.com/) (free, no API key)                                                                                 |
+| Dev UI            | Vite + React                                                                                                                             |
+| Tests             | Vitest (unit + deterministic render regression)                                                                                          |
+| Production deploy | Docker Compose + GitHub Actions                                                                                                          |
 
 ---
 

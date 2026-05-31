@@ -1,11 +1,11 @@
 import './logger.js';
 
+import { config } from './config.js';
 import { controlState } from './control-state.js';
 import { startControlServer } from './control.js';
-import { loadRuntimeConfig } from './runtime-config.js';
-import { config } from './config.js';
 import { advancePet, makePetContext, type PetContext } from './pet/index.js';
 import { drawPet, PET_Y_WALK, pixelsToPng, renderAnimation, type AnimationFrame, type PetState } from './render/index.js';
+import { loadRuntimeConfig } from './runtime-config.js';
 import { sendToPanel } from './transport/index.js';
 import { fetchWeather } from './weather/index.js';
 
@@ -62,18 +62,14 @@ function isInOffWindow(): boolean {
   const ps = controlState.powerSchedule;
   if (!ps) return false;
   const hour = new Date().getHours();
-  return ps.offFrom <= ps.offTo
-    ? hour >= ps.offFrom && hour < ps.offTo
-    : hour >= ps.offFrom || hour < ps.offTo;
+  return ps.offFrom <= ps.offTo ? hour >= ps.offFrom && hour < ps.offTo : hour >= ps.offFrom || hour < ps.offTo;
 }
 
 function resolveIsDay(apiIsDay: boolean): boolean {
   const nh = controlState.nightHours;
   if (!nh) return apiIsDay;
   const hour = new Date().getHours();
-  const isNightHour = nh.from <= nh.to
-    ? hour >= nh.from && hour < nh.to
-    : hour >= nh.from || hour < nh.to;
+  const isNightHour = nh.from <= nh.to ? hour >= nh.from && hour < nh.to : hour >= nh.from || hour < nh.to;
   return !isNightHour;
 }
 
@@ -127,7 +123,11 @@ async function run(): Promise<void> {
         console.log(`[${new Date().toISOString()}] power schedule: matrix off`);
         const black = pixelsToPng(new Uint8Array(32 * 32 * 3));
         pushFrame(black.toString('base64'));
-        try { await sendToPanel(black, 0); } catch { /* matrix may not be connected */ }
+        try {
+          await sendToPanel(black, 0);
+        } catch {
+          /* matrix may not be connected */
+        }
       }
       await sleep(30_000);
       continue;
@@ -154,7 +154,7 @@ async function run(): Promise<void> {
     }
 
     const effective = controlState.weatherOverride ?? snapshot;
-    const frame = frames[frameIdx % frames.length]!
+    const frame = frames[frameIdx % frames.length]!;
     const isDay = resolveIsDay(effective.isDay);
     const brightness = isDay ? controlState.brightness.day : controlState.brightness.night;
 

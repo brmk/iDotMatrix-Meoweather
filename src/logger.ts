@@ -1,17 +1,12 @@
-import { controlState } from './control-state.js';
+import { logStore } from './log-store.js';
 
-const MAX_LINES = 200;
-
-function pushLine(line: string): void {
-  controlState.logLines.push(line);
-  if (controlState.logLines.length > MAX_LINES) controlState.logLines.shift();
-  for (const sub of controlState.logSubs) {
-    try {
-      sub(line);
-    } catch {
-      /* ignore disconnected subscriber */
-    }
-  }
+function pushLine(level: 'info' | 'error', line: string): void {
+  logStore.append({
+    ts: new Date().toISOString(),
+    level,
+    source: 'app',
+    message: line,
+  });
 }
 
 // Intercept console.log and console.error so all process output is captured.
@@ -21,11 +16,11 @@ const origError = console.error.bind(console);
 console.log = (...args: unknown[]) => {
   const line = args.map(String).join(' ');
   origLog(line);
-  pushLine(line);
+  pushLine('info', line);
 };
 
 console.error = (...args: unknown[]) => {
   const line = 'ERROR: ' + args.map(String).join(' ');
   origError(line);
-  pushLine(line);
+  pushLine('error', line);
 };

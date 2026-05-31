@@ -15,6 +15,11 @@ Starts sidecar + TypeScript together with colour-prefixed output (`[sidecar]` /
 `[ts]`). Both processes hot-reload on file save. TS tolerates a slow sidecar
 start — BLE scanning takes ~15 s on first connect.
 
+The Dev Tools `Logs` tab shows recent **app** logs from a bounded in-memory
+buffer exposed by the TypeScript control server. It is suitable for live tail
+and short recent history during long runtimes, but it does not persist across
+restarts and it does not include Python sidecar logs.
+
 ## Start separately (production / two terminals)
 
 ```bash
