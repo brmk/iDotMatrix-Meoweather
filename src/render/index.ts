@@ -31,52 +31,53 @@ export function renderAnimation(snapshot: WeatherSnapshot) {
 
 // ---- PNG writer (Node built-ins only) ----
 
-function crc32(data: Buffer): number {
+// CRC lookup table built once at module load — avoids per-frame rebuild.
+const CRC_TABLE = (() => {
   const tbl = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
     let c = i;
     for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
     tbl[i] = c;
   }
+  return tbl;
+})();
+
+function buildChunk(type: string, data: Buffer): Buffer {
+  const out = Buffer.allocUnsafe(12 + data.length);
+  out.writeUInt32BE(data.length, 0);
+  out.write(type, 4, 'ascii');
+  data.copy(out, 8);
+  // compute CRC over type + data without an intermediate concat buffer
   let crc = 0xffffffff;
-  for (const byte of data) crc = tbl[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-  return (crc ^ 0xffffffff) >>> 0;
+  for (let i = 4; i < 8 + data.length; i++) crc = CRC_TABLE[(crc ^ out[i]!) & 0xff]! ^ (crc >>> 8);
+  out.writeUInt32BE((crc ^ 0xffffffff) >>> 0, 8 + data.length);
+  return out;
 }
 
-function pngChunk(type: string, data: Buffer): Buffer {
-  const typeBytes = Buffer.from(type, 'ascii');
-  const lenBuf = Buffer.alloc(4);
-  lenBuf.writeUInt32BE(data.length);
-  const crcBuf = Buffer.alloc(4);
-  crcBuf.writeUInt32BE(crc32(Buffer.concat([typeBytes, data])));
-  return Buffer.concat([lenBuf, typeBytes, data, crcBuf]);
-}
+// Pre-built constant chunks — never change for 32×32 RGB.
+const PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const IHDR_DATA = Buffer.alloc(13);
+IHDR_DATA.writeUInt32BE(DISPLAY_WIDTH, 0);
+IHDR_DATA.writeUInt32BE(DISPLAY_HEIGHT, 4);
+IHDR_DATA[8] = 8; // bit depth
+IHDR_DATA[9] = 2; // color type: RGB truecolor
+const IHDR_CHUNK = buildChunk('IHDR', IHDR_DATA);
+const IEND_CHUNK = buildChunk('IEND', Buffer.alloc(0));
+
+// Reusable scanline buffer — avoids one Buffer.alloc per frame.
+const ROW_STRIDE = 1 + DISPLAY_WIDTH * RGB_CHANNELS;
+const RAW_BUF = Buffer.alloc(DISPLAY_HEIGHT * ROW_STRIDE);
+for (let y = 0; y < DISPLAY_HEIGHT; y++) RAW_BUF[y * ROW_STRIDE] = 0; // filter byte: None
 
 function rgbToPng(rgb: Uint8Array): Buffer {
-  const raw = Buffer.alloc(DISPLAY_HEIGHT * (1 + DISPLAY_WIDTH * RGB_CHANNELS));
   for (let y = 0; y < DISPLAY_HEIGHT; y++) {
-    raw[y * (1 + DISPLAY_WIDTH * RGB_CHANNELS)] = 0;
-    for (let x = 0; x < DISPLAY_WIDTH; x++) {
-      const src = (y * DISPLAY_WIDTH + x) * RGB_CHANNELS;
-      const dst = y * (1 + DISPLAY_WIDTH * RGB_CHANNELS) + 1 + x * RGB_CHANNELS;
-      raw[dst] = rgb[src]!;
-      raw[dst + 1] = rgb[src + 1]!;
-      raw[dst + 2] = rgb[src + 2]!;
-    }
+    RAW_BUF.set(
+      rgb.subarray(y * DISPLAY_WIDTH * RGB_CHANNELS, (y + 1) * DISPLAY_WIDTH * RGB_CHANNELS),
+      y * ROW_STRIDE + 1,
+    );
   }
-
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(DISPLAY_WIDTH, 0);
-  ihdr.writeUInt32BE(DISPLAY_HEIGHT, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
-
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', deflateSync(raw)),
-    pngChunk('IEND', Buffer.alloc(0)),
-  ]);
+  const idat = buildChunk('IDAT', deflateSync(RAW_BUF, { level: 1 }));
+  return Buffer.concat([PNG_SIG, IHDR_CHUNK, idat, IEND_CHUNK]);
 }
 
 export function pixelsToPng(pixels: Uint8Array): Buffer {

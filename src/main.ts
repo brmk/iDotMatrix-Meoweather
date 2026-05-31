@@ -42,6 +42,9 @@ if (runtimeCfg.powerSchedule !== undefined) controlState.powerSchedule = runtime
 
 // ---- Helpers ----
 
+// Reusable working buffer for per-frame pet compositing.
+const WORK_BUF = new Uint8Array(32 * 32 * 3);
+
 function pushFrame(b64: string): void {
   controlState.currentFrame = b64;
   for (const sub of controlState.frameSubs) {
@@ -137,6 +140,8 @@ async function run(): Promise<void> {
       controlState.weatherDirty = false;
     }
 
+    const tickStart = Date.now();
+
     const effective = controlState.weatherOverride ?? snapshot;
     const frame = frames[frameIdx % frames.length];
     const isDay = resolveIsDay(effective.isDay);
@@ -147,10 +152,10 @@ async function run(): Promise<void> {
     applyBehaviorOverride();
     controlState.tick++;
 
-    const pixels = new Uint8Array(frame.pixels);
-    drawPet(pixels, pet);
+    WORK_BUF.set(frame.pixels);
+    drawPet(WORK_BUF, pet);
 
-    const png = pixelsToPng(pixels);
+    const png = pixelsToPng(WORK_BUF);
 
     pushFrame(png.toString('base64'));
 
@@ -160,7 +165,8 @@ async function run(): Promise<void> {
       console.error('sendToPanel failed:', err);
     }
 
-    await sleep(frame.delayMs);
+    const elapsed = Date.now() - tickStart;
+    await sleep(Math.max(0, frame.delayMs - elapsed));
     frameIdx = (frameIdx + 1) % frames.length;
   }
 }
