@@ -147,6 +147,8 @@ export default function Simulator() {
   const [powerOffTo, setPowerOffTo] = useState<number>(DEFAULTS.powerOffTo);
   // tracks fields the user is actively editing — SSE syncs are skipped for those fields
   const editingRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // debounce timers for server POST calls — prevents intermediate values from triggering off-window
+  const postDebounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Keep latest control values accessible inside the animation loop without restarts.
   const liveRef = useRef({ iconVal, temp, night, speed });
@@ -189,6 +191,20 @@ export default function Simulator() {
     editingRef.current[field] = setTimeout(() => {
       delete editingRef.current[field];
     }, 2000);
+  }, []);
+
+  const debouncedPostNightHours = useCallback((from: number | null, to: number | null) => {
+    clearTimeout(postDebounceRef.current['nightHours']);
+    postDebounceRef.current['nightHours'] = setTimeout(() => {
+      void postNightHours(from, to);
+    }, 400);
+  }, []);
+
+  const debouncedPostPowerSchedule = useCallback((offFrom: number | null, offTo: number | null) => {
+    clearTimeout(postDebounceRef.current['powerSchedule']);
+    postDebounceRef.current['powerSchedule'] = setTimeout(() => {
+      void postPowerSchedule(offFrom, offTo);
+    }, 400);
   }, []);
 
   // Sync numeric values from server state; skip fields the user is actively editing.
@@ -456,7 +472,7 @@ export default function Simulator() {
                       const v = Number(e.target.value);
                       markEditing('nightFrom');
                       setNightFrom(v);
-                      void postNightHours(v, nightTo);
+                      debouncedPostNightHours(v, nightTo);
                     }}
                   />
                   <span>–</span>
@@ -470,7 +486,7 @@ export default function Simulator() {
                       const v = Number(e.target.value);
                       markEditing('nightTo');
                       setNightTo(v);
-                      void postNightHours(nightFrom, v);
+                      debouncedPostNightHours(nightFrom, v);
                     }}
                   />
                   <span style={{ color: '#555', fontSize: 10 }}>h</span>
@@ -502,7 +518,7 @@ export default function Simulator() {
                       const v = Number(e.target.value);
                       markEditing('powerOffFrom');
                       setPowerOffFrom(v);
-                      void postPowerSchedule(v, powerOffTo);
+                      debouncedPostPowerSchedule(v, powerOffTo);
                     }}
                   />
                   <span>–</span>
@@ -516,7 +532,7 @@ export default function Simulator() {
                       const v = Number(e.target.value);
                       markEditing('powerOffTo');
                       setPowerOffTo(v);
-                      void postPowerSchedule(powerOffFrom, v);
+                      debouncedPostPowerSchedule(powerOffFrom, v);
                     }}
                   />
                   <span style={{ color: '#555', fontSize: 10 }}>h (matrix fully off)</span>
