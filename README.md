@@ -1,8 +1,8 @@
 # iDotMatrix-Meoweather
 
-Autonomous weather display for the **iDotMatrix 32×32 LED pixel panel** — no phone, no cloud, no interaction required. Current weather is fetched from the internet, rendered into a looping pixel animation, and pushed to the panel over Bluetooth Low Energy.
+Autonomous weather display for the **iDotMatrix 32×32 LED pixel panel** — no phone, no cloud, no interaction required. Current weather is fetched from the internet, rendered into a looping pixel animation, and pushed to the panel over Bluetooth Low Energy. 📡
 
-A pixel cat lives on the display and wanders around between weather updates.
+A pixel cat 🐱 lives on the display and wanders around between weather updates.
 
 ![Demo — weather scenes](docs/screenshots/demo.gif)
 
@@ -10,14 +10,14 @@ A pixel cat lives on the display and wanders around between weather updates.
 
 ## Features
 
-### Weather display
+### 🌤️ Weather display
 - **9 animated weather scenes** — clear day, clear night, partly cloudy, cloudy, fog, rain, heavy rain, snow, thunderstorm
 - **Smooth animations** — each scene loops with 6–12 frames; only changed pixels are sent over BLE, so the panel never flashes
 - **Live temperature** — rendered in a custom pixel font
 - **Night tinting** — colours shift warmer after sunset
 - **Automatic refresh** — fetches weather from [Open-Meteo](https://open-meteo.com/) on a configurable interval (default: every 10 minutes)
 
-### Pixel pet
+### 🐾 Pixel pet
 A 5-pixel-wide cat overlaid on every frame. It has a full behaviour state machine:
 
 | Behaviour | Description |
@@ -33,7 +33,7 @@ A 5-pixel-wide cat overlaid on every frame. It has a full behaviour state machin
 
 Day and night have different behaviour weights (night is calmer: more dreaming, less jumping).
 
-### Control API & web UI
+### 🎛️ Control API & web UI
 
 A local HTTP server (port 3000) exposes a REST API and a web UI for live control:
 
@@ -50,7 +50,7 @@ A local HTTP server (port 3000) exposes a REST API and a web UI for live control
 | `POST /api/control/weather` | Override the weather (useful for testing) |
 | `POST /api/control/pause` | Pause/resume rendering |
 
-### Developer tools
+### 🛠️ Developer tools
 
 `npm run dev:sim` opens a browser-based dev app with three tabs:
 
@@ -64,7 +64,7 @@ A local HTTP server (port 3000) exposes a REST API and a web UI for live control
 
 **Logs** — streamed output from the running app.
 
-### Deployment
+### 🚀 Deployment
 
 | Target | How |
 |--------|-----|
