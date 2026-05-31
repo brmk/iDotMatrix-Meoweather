@@ -1,7 +1,7 @@
 import type { PetContext } from './pet/index.js';
 import type { PetBehavior, PetState } from './render/pet/types.js';
 import type { WeatherSnapshot } from './weather/index.js';
-import { config } from './config.js';
+import { DEFAULTS } from './defaults.js';
 
 export interface BehaviorOverride {
   behavior: PetBehavior;
@@ -51,7 +51,7 @@ export const controlState: ControlState = {
   behaviorOverride: null,
   weatherOverride: null,
   weatherDirty: false,
-  brightness: { day: config.dayBrightness, night: config.nightBrightness },
+  brightness: { day: DEFAULTS.dayBrightness, night: DEFAULTS.nightBrightness },
   nightHours: null,
   powerSchedule: null,
   matrixPaused: false,
