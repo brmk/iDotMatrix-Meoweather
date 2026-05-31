@@ -35,30 +35,35 @@ Docker. It keeps the app as two containers:
 
 One-time host prep on the Pi:
 
-1. Install Docker Engine with Compose support.
+1. Install Docker Engine (tested with v20.10). Note: the Pi may only have
+   `docker-compose` v1 — the deploy script uses that, not `docker compose` v2.
 2. Add your user to the `docker` group.
-3. Install a self-hosted GitHub Actions runner on the Pi if you want push-based
-   deploys from GitHub.
-4. Enable user lingering once if you want startup before login:
+3. Enable user lingering once if you want startup before login:
    ```bash
    sudo loginctl enable-linger "$USER"
    ```
 
-Initial deployment:
+Initial deployment from your local machine:
 
 ```bash
 cp .env.example .env
-cp deploy/rpi/compose.env.example deploy/rpi/compose.env
-# edit both files for your coordinates and GHCR image namespace
+# edit .env: set LATITUDE/LONGITUDE, APP_IMAGE, SIDECAR_IMAGE, and RPI_HOST
+# RPI_HOST format: user@<ip>  e.g. brmk@192.168.31.17
+# do NOT set RPI_DIR — the script defaults to $HOME/led-matrix on the Pi
 
-./scripts/deploy-rpi.sh
-./scripts/install-rpi-user-service.sh
+bash scripts/deploy.sh
 ```
 
-Manual update on the Pi:
+The script:
+1. Creates `~/led-matrix/` on the Pi if it doesn't exist
+2. Rsyncs `compose.rpi.yml` to the Pi
+3. Copies `.env.example` to `~/led-matrix/.env` on the Pi (first run only — does not overwrite)
+4. Pulls updated images from GHCR and restarts the stack
+
+On subsequent deploys (after pushing new code to `main` and waiting for CI to build):
 
 ```bash
-./scripts/deploy-rpi.sh
+bash scripts/deploy.sh
 ```
 
 The compose stack uses `network_mode: host` and mounts `/run/dbus` because the
@@ -154,10 +159,17 @@ curl http://localhost:8765/health
 Sidecar needs ~18 s after startup for the BLE scan to complete.
 
 For the Raspberry Pi compose stack, run the same check on the host after
-`docker compose up -d`:
+`docker-compose up -d`:
 
 ```bash
 curl http://127.0.0.1:8765/health
+```
+
+If you see `"connected": false`, the sidecar hasn't paired yet — it retries
+automatically on the first `/display` request. Check logs with:
+
+```bash
+docker logs led-matrix_sidecar_1 --tail 30
 ```
 
 ## Test PNG generation
@@ -190,6 +202,10 @@ normal test runs.
   automatic retry with backoff. No manual sidecar restart needed.
 - **Pi container cannot see Bluetooth** — confirm the sidecar service is running
   with host networking, `/run/dbus` mounted, and the host Bluetooth stack is up.
+- **Two sets of containers running on Pi** — if you had a previous deployment in
+  a different directory (e.g. `~/apps/led-matrix-idotmatrix/`), stop it with
+  `docker-compose -f ~/apps/led-matrix-idotmatrix/compose.rpi.yml down` before
+  the new stack can bind port 8765 and pair BLE.
 - **Image wrong on panel but `out.png` looks fine** — the problem is in the
   sidecar's PNG→panel step, not the renderer. Debug sidecar with `curl` alone.
 - **Image wrong in `out.png` too** — it's the renderer; fix without the panel.
