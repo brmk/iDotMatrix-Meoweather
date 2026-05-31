@@ -47,6 +47,7 @@ _device_address: Optional[str] = None
 _device_name: Optional[str] = None
 _connect_lock = asyncio.Lock()
 _push_lock = asyncio.Lock()
+_bg_tasks: set[asyncio.Task] = set()  # keeps fire-and-forget tasks alive until done
 
 # Previous frame as a flat list of (r,g,b) tuples, row-major. None = unknown.
 _prev_frame: Optional[list[tuple[int, int, int]]] = None
@@ -122,6 +123,12 @@ async def _ensure_connected() -> IDotMatrixClient:
 def _reset_client() -> None:
     """Mark the client as dead so the next call to _ensure_connected reconnects."""
     global _client, _prev_frame, _current_brightness
+    if _client is not None:
+        # Fire-and-forget disconnect so the OS (CoreBluetooth/BlueZ) releases the
+        # connection instead of holding it until the Python object is GC'd.
+        task = asyncio.ensure_future(_client._connection_manager.disconnect())
+        _bg_tasks.add(task)
+        task.add_done_callback(_bg_tasks.discard)
     _client = None
     _prev_frame = None
     _current_brightness = None
@@ -194,6 +201,9 @@ async def ble_scan(timeout: float = 8.0):
             devices = await BleakScanner.discover(return_adv=True)
     except TimeoutError:
         raise HTTPException(status_code=504, detail="BLE scan timed out")
+    except Exception as e:
+        logger.exception("BLE scan failed")
+        raise HTTPException(status_code=503, detail=f"BLE scan failed: {e}")
 
     results = []
     for address, (device, adv) in devices.items():
