@@ -49,10 +49,27 @@ following the same tolerance-first pattern as `src/runtime-config.ts`:
    copied to `customization.bak.v{N}.json` before the rewrite, giving the user a one-time rollback
    path.
 
+## Render Seam (Phase 2)
+
+`src/render/pet/active.ts` is the runtime holder consumed by the draw module:
+
+- **`ActiveCustomization`** holds parsed sprites, resolved day/night palette maps, dream color,
+  behavior config, and pre-computed residue fade ramps.
+- **`initActiveFromCustomization(c)`** / **`setActiveCustomization(c)`** (same body) rebuild the
+  holder from a `Customization` value. `setActiveCustomization` is the Phase 3 hot-swap hook.
+- **`getActive()`** returns the singleton, lazily seeding from `DEFAULT_CUSTOMIZATION` if never
+  explicitly initialized (keeps unit tests that import `draw.ts` working without a store call).
+- **Palette resolution**: `resolvePalette(swatches)` builds `{ day, night }` maps; if a swatch
+  omits `night`, it is derived by `darken(day, NIGHT_FACTOR)` where `NIGHT_FACTOR = 0.5`.
+- **Residue ramps**: `PUKE_FADE_STEPS` / `POO_FADE_STEPS` are preserved verbatim as defaults when
+  the resolved `g`/`s` day colors match their hardcoded values. For user-customized swatches a
+  proportional ramp is generated via `buildFadeSteps`. Rationale: the original ramps are
+  hand-crafted and cannot be reproduced exactly from the base color by any uniform factor.
+
 ## Consequences
 
-- Phase 2 can inject sprites/colors from the store into the renderer via a single
-  `loadCustomization()` call at startup; the renderer itself stays pure.
+- Phase 2 injects sprites/colors from the store into the renderer via `initActiveFromCustomization`
+  at startup; the renderer itself stays pure.
 - Phase 3 adds `GET/PUT /api/customization` over the already-persisted store.
 - The Studio (Phase 4) writes via the API, not by patching TypeScript files.
 - Adding a new customization field requires: adding it to `Customization` in `schema.ts`, providing

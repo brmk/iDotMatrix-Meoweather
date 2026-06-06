@@ -7,6 +7,7 @@ import { config } from './config.js';
 import type { BrightnessConfig, NightHours, PowerSchedule } from './control-state.js';
 import { controlState } from './control-state.js';
 import { logStore } from './log-store.js';
+import { getActive } from './render/pet/active.js';
 import type { PetBehavior } from './render/pet/types.js';
 import { saveRuntimeConfig } from './runtime-config.js';
 import type { WeatherSnapshot } from './weather/index.js';
@@ -15,16 +16,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const UI_DIR = resolve(__dirname, '..', 'dist-dev');
 const LOG_STREAM_HEARTBEAT_MS = 15_000;
 
-const BEHAVIOR_DUR: Record<string, number> = {
-  walk: 0,
-  sit: 60,
-  lie: 80,
-  jump: 8,
-  perch: 12,
-  dream: 120,
-  burp: 12,
-  poo: 10,
-};
+function getBehaviorDur(behavior: string): number {
+  if (behavior === 'walk') return 0;
+  const t = getActive().behavior.day.transitions[behavior as PetBehavior];
+  return t ? Math.round((t.minDuration + t.maxDuration) / 2) : 60;
+}
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -197,7 +193,7 @@ async function routeControlBehavior(req: IncomingMessage, res: ServerResponse): 
     }
     controlState.behaviorOverride = {
       behavior: behavior as PetBehavior,
-      dur: BEHAVIOR_DUR[behavior] ?? 60,
+      dur: getBehaviorDur(behavior),
     };
     json(res, 200, { ok: true });
   } catch {

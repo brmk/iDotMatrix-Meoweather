@@ -8,7 +8,7 @@
 | # | Phase | Status | Depends on | Branch / PR | Date | Notes |
 |---|-------|--------|-----------|-------------|------|-------|
 | 1 | [[phase-1-store-and-versioning]] | ✅ | — | `transform/phase-1-store-and-versioning` | 2026-06-06 | `CONFIG_PATH`=`customization.json` (project root, sibling of `runtime.json`). Backups: `customization.bak.v{N}.json`. Corrupt: `customization.corrupt.json`. `CURRENT_SCHEMA_VERSION=1`. Schema versioning covered in ADR-0009 (no separate ADR-0010). `runMigrationsWithTable` exported for test injection. |
-| 2 | [[phase-2-render-seam]] | ⬜ | 1 | | | |
+| 2 | [[phase-2-render-seam]] | ✅ | 1 | `transform/phase-2-render-seam` | 2026-06-06 | `NIGHT_FACTOR=0.5`. Residue ramps: use hardcoded defaults when g/s match; generate proportionally otherwise (hand-crafted ramps don't reproduce from uniform factor). `BEHAVIOR_DUR` replaced by `getBehaviorDur()` deriving from active config. `setActiveCustomization` exported for Phase 3 hot-swap. |
 | 3 | [[phase-3-backend-api]] | ⬜ | 1, 2 | | | |
 | 4 | [[phase-4-studio-and-palette-editor]] | ⬜ | 3 | | | |
 | 5 | [[phase-5-ui-restructure]] | ⬜ | 4 | | | |
@@ -33,7 +33,13 @@ P5/P6 reshape the UI. P7 is maturity polish (needs the unified UI from P5).
 - **Reserved palette chars:** `o g s l r` are structural roles referenced by key in `draw.ts`
   (tail=`s`, fur=`o`, accent=`r`, eyes=`g`, light=`l`). They are always present in the palette and
   may be recolored but never removed. User swatches use any other single ASCII char not in this set.
-- Record the chosen night-darken factor (P2) once verified to reproduce default `PET_NIGHT`.
+- **Night-darken factor (P2):** `NIGHT_FACTOR = 0.5`. Defaults carry explicit night values so
+  auto-darken only applies to user swatches; 0.5 approximates the PET_DAY→PET_NIGHT ratio (≈0.48–0.52
+  per channel). The regression test passes unchanged because defaults use explicit values, not darken().
+- **Residue ramp strategy (P2):** PUKE/POO ramp constants are preserved verbatim when the resolved
+  `g`/`s` day colors match their defaults. For non-default swatches, `buildFadeSteps` generates
+  proportional ramps using fixed per-step factors. Rationale: the original hand-crafted ramps cannot
+  be reproduced from base color alone (step ratios vary per channel).
 - **ADR-0010 decision:** schema versioning strategy is covered in ADR-0009 (not a separate ADR).
 
 ## Teardown checklist (closing agent)
