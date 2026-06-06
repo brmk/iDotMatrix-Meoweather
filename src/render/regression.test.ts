@@ -5,6 +5,7 @@ import { renderAnimation, renderToPng } from './index.js';
 import { drawPet } from './pet/draw.js';
 import { PET_Y_WALK } from './pet/sprites.js';
 import type { PetState } from './pet/types.js';
+import { render } from './scene/frame.js';
 
 function makeSnapshot(overrides: Partial<WeatherSnapshot> = {}): WeatherSnapshot {
   return {
@@ -24,10 +25,10 @@ function hashBytes(bytes: Uint8Array): string {
 }
 
 describe('render regressions', () => {
-  it('keeps representative static PNG outputs stable', () => {
+  it('keeps representative static frame outputs stable', () => {
     expect(
       hashBytes(
-        renderToPng(
+        render(
           makeSnapshot({
             temperature: 22,
             weatherCode: 0,
@@ -35,11 +36,11 @@ describe('render regressions', () => {
           }),
         ),
       ),
-    ).toBe('31d1392b84c99c1f8882cf5644c8c2b35d3ba8024192317e5659a599b60cbbec');
+    ).toBe('672ea1ee1e9c70e9f2ec90c15e72917cf739980b2e18c4cf6369521e75b78e5f');
 
     expect(
       hashBytes(
-        renderToPng(
+        render(
           makeSnapshot({
             temperature: -3,
             weatherCode: 45,
@@ -47,7 +48,20 @@ describe('render regressions', () => {
           }),
         ),
       ),
-    ).toBe('7e20c7b599a8a5b01542ec54810b83947f469f3eef346281e4f8fda48e8f92e7');
+    ).toBe('debc926bbdc9c40b5cc79d71b93c7f37157471c7cc34028c55e3056a0f90ec02');
+  });
+
+  it('keeps representative PNG exports structurally valid', () => {
+    const png = renderToPng(
+      makeSnapshot({
+        temperature: 22,
+        weatherCode: 0,
+        isDay: true,
+      }),
+    );
+
+    expect(Array.from(png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(png.length).toBeGreaterThan(100);
   });
 
   it('keeps representative thunder animation frames stable', () => {

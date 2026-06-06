@@ -64,22 +64,28 @@ export default function TimeRangeClock({ from, to, onChange, onDragStart }: Read
     return [(e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY];
   }, []);
 
-  const onPointerDown = useCallback((handle: 'from' | 'to') => (e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    draggingRef.current = handle;
-    onDragStart();
-  }, [onDragStart]);
+  const onPointerDown = useCallback(
+    (handle: 'from' | 'to') => (e: React.PointerEvent) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      draggingRef.current = handle;
+      onDragStart();
+    },
+    [onDragStart],
+  );
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
-    const [px, py] = getSvgPoint(e);
-    const h = xyToHour(px, py);
-    if (draggingRef.current === 'from') {
-      onChange(h, to);
-    } else {
-      onChange(from, h);
-    }
-  }, [from, to, onChange, getSvgPoint]);
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!draggingRef.current) return;
+      const [px, py] = getSvgPoint(e);
+      const h = xyToHour(px, py);
+      if (draggingRef.current === 'from') {
+        onChange(h, to);
+      } else {
+        onChange(from, h);
+      }
+    },
+    [from, to, onChange, getSvgPoint],
+  );
 
   const onPointerUp = useCallback(() => {
     draggingRef.current = null;
@@ -111,53 +117,35 @@ export default function TimeRangeClock({ from, to, onChange, onDragStart }: Read
           const [x1, y1] = hourToXY(h, TRACK_R);
           const isMajor = h % 6 === 0;
           const [x2, y2] = hourToXY(h, isMajor ? TICK_R_INNER_MAJOR : TICK_R_INNER_MINOR);
-          return (
-            <line key={h} x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={isMajor ? '#666' : '#444'} strokeWidth={isMajor ? 1.5 : 1} />
-          );
+          return <line key={h} x1={x1} y1={y1} x2={x2} y2={y2} stroke={isMajor ? '#666' : '#444'} strokeWidth={isMajor ? 1.5 : 1} />;
         })}
 
         {/* hour labels */}
         {([0, 6, 12, 18] as const).map((h) => {
           const [lx, ly] = hourToXY(h, LABEL_R);
           return (
-            <text key={h} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-              fill="#666" fontSize={9} fontFamily="monospace">
+            <text key={h} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill="#666" fontSize={9} fontFamily="monospace">
               {h}
             </text>
           );
         })}
 
         {/* off-period arc */}
-        {spanHours > 0 && (
-          <path d={arcPath(from, to)} fill="none" stroke="#d84" strokeWidth={4} strokeLinecap="round" />
-        )}
+        {spanHours > 0 && <path d={arcPath(from, to)} fill="none" stroke="#d84" strokeWidth={4} strokeLinecap="round" />}
 
         {/* current time indicator */}
         <line x1={CX} y1={CY} x2={cwx} y2={cwy} stroke="#555" strokeWidth={1.5} strokeLinecap="round" />
         <circle cx={CX} cy={CY} r={2} fill="#555" />
 
         {/* from handle */}
-        <circle
-          cx={fx} cy={fy} r={HANDLE_R}
-          fill="#d84" stroke="#1a1a1a" strokeWidth={1.5}
-          style={{ cursor: 'grab' }}
-          onPointerDown={onPointerDown('from')}
-        />
+        <circle cx={fx} cy={fy} r={HANDLE_R} fill="#d84" stroke="#1a1a1a" strokeWidth={1.5} style={{ cursor: 'grab' }} onPointerDown={onPointerDown('from')} />
 
         {/* to handle */}
-        <circle
-          cx={tx} cy={ty} r={HANDLE_R}
-          fill="#8ad" stroke="#1a1a1a" strokeWidth={1.5}
-          style={{ cursor: 'grab' }}
-          onPointerDown={onPointerDown('to')}
-        />
+        <circle cx={tx} cy={ty} r={HANDLE_R} fill="#8ad" stroke="#1a1a1a" strokeWidth={1.5} style={{ cursor: 'grab' }} onPointerDown={onPointerDown('to')} />
       </svg>
 
       <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#888', textAlign: 'center' }}>
-        <span style={{ color: '#d84' }}>●</span> {String(from).padStart(2, '0')}:00
-        {' '}→{' '}
-        <span style={{ color: '#8ad' }}>●</span> {String(to).padStart(2, '0')}:00
+        <span style={{ color: '#d84' }}>●</span> {String(from).padStart(2, '0')}:00 → <span style={{ color: '#8ad' }}>●</span> {String(to).padStart(2, '0')}:00
         <span style={{ color: '#555' }}>{spanHours > 0 ? ` (${spanHours}h off)` : ''}</span>
       </div>
     </div>

@@ -99,7 +99,7 @@ async function run(): Promise<void> {
   let lastFetch = Date.now();
   let lastWeatherFrame = Date.now();
   let matrixOff = false;
-  let displayTick = 0;  // counts display ticks; pet advances every PET_ADVANCE_EVERY_N_TICKS
+  let displayTick = 0; // counts display ticks; pet advances every PET_ADVANCE_EVERY_N_TICKS
 
   console.log(
     `[${new Date().toISOString()}] weather code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay} — ${frames.length} animation frames`,
