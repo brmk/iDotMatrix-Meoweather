@@ -135,7 +135,14 @@ All routes are served by the Node.js control server on port 3000.
 
 ## Current state
 
-Phase 3 (Backend API) is complete (2026-06-06). Phase 6 post-phase pet enhancements (2026-05-25):
+Phase 4 (Studio + Palette Editor) is complete (2026-06-06). The Studio is now the
+production customization surface: it reads/writes `customization.json` through
+`GET/PUT /api/customization` instead of localStorage and the dev-only Vite
+plugins. A `PaletteEditor` component supports adding/removing/recoloring swatches
+(reserved roles `o g s l r` are locked). The app + schema version is shown in the
+Dev Tools header via `GET /api/version`.
+
+Phase 3 (Backend API) was complete (2026-06-06). Phase 6 post-phase pet enhancements (2026-05-25):
 
 - **`poo` behavior** — new sprite pair (POO_A/POO_B, squatting pose), brown
   fading floor residue, registered in `BEHAVIOR_ADVANCERS`.

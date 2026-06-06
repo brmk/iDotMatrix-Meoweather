@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import Connection from './components/Connection';
 import LogsPanel from './components/LogsPanel';
 import Simulator from './components/Simulator';
@@ -16,9 +16,25 @@ const tabStyle = (active: boolean): CSSProperties => ({
   cursor: 'pointer',
 });
 
+interface VersionInfo {
+  app: string;
+  schema: number;
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>('preview');
   const [studioNav, setStudioNav] = useState<StudioNavActions | null>(null);
+  const [version, setVersion] = useState<VersionInfo | null>(null);
+
+  useEffect(() => {
+    fetch('/api/version')
+      .then((r) => r.json() as Promise<VersionInfo>)
+      .then(setVersion)
+      .catch(() => {
+        /* backend not running in sim-only mode */
+      });
+  }, []);
+
   const statusColor = studioNav ? { saved: '#4a8', unsaved: '#a84', saving: '#888', error: '#a44' }[studioNav.saveStatus] : '#888';
 
   let statusText = '';
@@ -41,6 +57,11 @@ export default function App() {
         }}
       >
         <span style={{ fontSize: 12, letterSpacing: 2, color: '#888' }}>iDOTMATRIX DEV TOOLS</span>
+        {version && (
+          <span style={{ fontSize: 9, color: '#555', fontFamily: 'monospace' }}>
+            v{version.app} · schema {version.schema}
+          </span>
+        )}
         {(['preview', 'studio', 'logs', 'connection'] as Tab[]).map((t) => (
           <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
             {t}
