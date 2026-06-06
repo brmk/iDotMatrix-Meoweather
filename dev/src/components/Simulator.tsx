@@ -98,7 +98,6 @@ async function postNightHours(from: number | null, to: number | null): Promise<v
   });
 }
 
-
 async function postPowerSchedule(offFrom: number | null, offTo: number | null): Promise<void> {
   await fetch('/api/control/power-schedule', {
     method: 'POST',
@@ -525,7 +524,6 @@ export default function Simulator() {
                 </div>
               )}
             </div>
-
           </div>
         )}
 

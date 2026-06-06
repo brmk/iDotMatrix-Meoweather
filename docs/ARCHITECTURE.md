@@ -36,6 +36,16 @@ sidecar and do everything else in TypeScript.
 
 ## Components
 
+### customization/ (TypeScript)
+
+Versioned runtime store for panel customization (palette, sprites, behavior). Persists to
+`customization.json` next to `runtime.json`. Code constants in `render/pet/colors.ts`,
+`sprites.ts`, and `pet/config.ts` remain as fallback defaults — the store deep-merges loaded
+values over them so missing fields are always filled. Schema versioned at `CURRENT_SCHEMA_VERSION`
+with a forward migration runner; tolerant of missing, corrupt, or future-version files (defaults
+returned in all failure modes, never throws). Consumed by the renderer starting Phase 2.
+→ [[adr/0009-runtime-customization-store]]
+
 ### weather/ (TypeScript)
 Fetches current conditions from Open-Meteo, caches the response, and maps it to
 an internal `WeatherSnapshot` (temperature, condition code, day/night). Nothing

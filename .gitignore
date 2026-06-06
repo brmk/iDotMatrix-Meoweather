@@ -18,6 +18,9 @@ dist-dev/
 
 # Runtime user settings (persisted by the running process)
 runtime.json
+customization.json
+customization.bak.*.json
+customization.corrupt.json
 
 # macOS
 .DS_Store
