@@ -1,12 +1,7 @@
 import type { Swatch } from '@src/customization/schema';
 import { EDITABLE_BEHAVIORS, PET_BEHAVIOR_CONFIG, type BehaviorChanceConfig, type BehaviorPeriodConfig, type PetBehaviorConfig } from '@src/pet/config';
-import type { PetContext, PetState } from '@src/pet/index';
-import { advancePet, makePetContext } from '@src/pet/index';
 import { setActiveCustomization } from '@src/render/pet/active';
-import { drawPetWithSprites } from '@src/render/pet/draw';
-import { PET_Y_WALK } from '@src/render/pet/sprites';
 import type { RawPetSprites } from '@src/render/pet/types';
-import { renderAnimationFrames as renderAnimation } from '@src/render/scene/frame';
 import { RAW_SPRITES, type SpriteKey } from '@src/sprites';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useCustomization } from '../useCustomization';
@@ -33,31 +28,7 @@ const FRAME_ORDER: SpriteKey[] = [
   'POO_B',
 ];
 
-const BEHAVIOR_DUR: Record<string, number> = {
-  walk: 0,
-  sit: 60,
-  lie: 80,
-  jump: 8,
-  perch: 12,
-  dream: 120,
-  burp: 12,
-  poo: 10,
-};
-
-const WEATHER_OPTIONS = [
-  { value: '0_day', label: '☀ Clear Day' },
-  { value: '0_night', label: '🌙 Clear Night' },
-  { value: '2', label: '⛅ Partly Cloudy' },
-  { value: '3', label: '☁ Cloudy' },
-  { value: '45', label: '🌫 Fog' },
-  { value: '61', label: '🌧 Rain' },
-  { value: '82', label: '⛈ Heavy Rain' },
-  { value: '71', label: '❄ Snow' },
-  { value: '95', label: '⚡ Thunder' },
-];
-
 const CELL = 48;
-const SCALE = 10;
 
 const CODE_BEHAVIOR_CONFIG: PetBehaviorConfig = structuredClone(PET_BEHAVIOR_CONFIG);
 
@@ -87,6 +58,7 @@ export interface StudioNavActions {
 
 interface StudioProps {
   onNavActionsChange?: (actions: StudioNavActions | null) => void;
+  onDraftChange?: (draft: { frames: Record<SpriteKey, string[]>; palette: Swatch[]; behaviorConfig: PetBehaviorConfig }) => void;
 }
 
 // User's local edits layered on top of the server customization.
@@ -97,7 +69,7 @@ interface Draft {
   palette?: Swatch[];
 }
 
-export default function Studio({ onNavActionsChange }: StudioProps) {
+export default function Studio({ onNavActionsChange, onDraftChange }: StudioProps) {
   const { customization, saveStatus, markUnsaved, save, reset } = useCustomization();
 
   // Draft tracks unsaved edits; initialised from server customization during first render.
@@ -113,47 +85,13 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
     () => draft.behaviorConfig ?? customization?.behavior ?? defaultBehaviorConfig(),
     [draft.behaviorConfig, customization],
   );
-  const palette = useMemo<Swatch[]>(
-    () => draft.palette ?? customization?.palette ?? [],
-    [draft.palette, customization],
-  );
+  const palette = useMemo<Swatch[]>(() => draft.palette ?? customization?.palette ?? [], [draft.palette, customization]);
 
   const [curFrame, setCurFrame] = useState<SpriteKey>('WALK_A');
   const [selColor, setSelColor] = useState('o');
 
-  const [iconVal, setIconVal] = useState('0_day');
-  const [temp, setTemp] = useState(20);
-  const [humidity, setHumidity] = useState(50);
-  const [windSpeed, setWindSpeed] = useState(10);
-  const [night, setNight] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [info, setInfo] = useState('');
-  const [behavior, setBehavior] = useState('walk');
-
   const gridRef = useRef<HTMLCanvasElement>(null);
-  const previewRef = useRef<HTMLCanvasElement>(null);
-  const offRef = useRef<HTMLCanvasElement | null>(null);
   const painting = useRef(false);
-
-  const petRef = useRef<PetState>({
-    x: 0,
-    facingRight: true,
-    behavior: 'walk',
-    walkFrame: 0,
-    behaviorFrame: 0,
-    tailPhase: 0,
-    isDay: true,
-    eyesClosed: false,
-    perchY: PET_Y_WALK,
-    pukeItems: [],
-    pooItems: [],
-  });
-  const petCtxRef = useRef<PetContext>(makePetContext());
-  const frameIdxRef = useRef(0);
-  const lastTsRef = useRef(0);
-  const lastInfoRef = useRef(0);
-  const tickRef = useRef(0);
-  const rafRef = useRef(0);
 
   // Build CSS color map from live palette
   const colorCss = useMemo<Record<string, string>>(() => {
@@ -165,7 +103,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
     return map;
   }, [palette]);
 
-  // Keep browser-side renderer in sync with editable state for live preview.
+  // Keep browser-side renderer in sync with editable state so PreviewStage's rAF loop renders the draft.
   // setActiveCustomization updates colors/sprites; PET_BEHAVIOR_CONFIG mutation keeps advancePet in sync.
   useEffect(() => {
     if (!initialized) return;
@@ -186,10 +124,10 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
     PET_BEHAVIOR_CONFIG.night = structuredClone(behaviorConfig.night);
   }, [palette, frames, behaviorConfig, initialized]);
 
-  const liveRef = useRef({ frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig });
+  // Notify parent of draft changes so the shared PreviewStage can reflect unsaved edits.
   useEffect(() => {
-    liveRef.current = { frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig };
-  }, [frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig]);
+    onDraftChange?.({ frames, palette, behaviorConfig });
+  }, [frames, palette, behaviorConfig, onDraftChange]);
 
   // ---- Draw grid ----
   useEffect(() => {
@@ -229,65 +167,6 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
       ctx.stroke();
     }
   }, [frames, curFrame, colorCss]);
-
-  // ---- Preview loop ----
-  useEffect(() => {
-    if (!offRef.current) offRef.current = Object.assign(document.createElement('canvas'), { width: 32, height: 32 });
-    const canvas = previewRef.current!;
-    const ctx = canvas.getContext('2d')!;
-    const octx = offRef.current.getContext('2d')!;
-
-    function loop(ts: number) {
-      rafRef.current = requestAnimationFrame(loop);
-      const { frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig } = liveRef.current;
-      const raw = iconVal;
-      const snap =
-        raw === '0_night'
-          ? { weatherCode: 0, isDay: false, temperature: temp, humidity, windSpeed, windDirection: 0, fetchedAt: new Date() }
-          : { weatherCode: Number.parseInt(raw, 10), isDay: !night, temperature: temp, humidity, windSpeed, windDirection: 0, fetchedAt: new Date() };
-      const wFrames = renderAnimation(snap);
-      if (!wFrames.length) return;
-
-      const f = wFrames[frameIdxRef.current % wFrames.length]!;
-      if (ts - lastTsRef.current < f.delayMs / speed) return;
-      lastTsRef.current = ts;
-
-      petRef.current.isDay = snap.isDay;
-      if (petCtxRef.current.walkBudget === 0 && petRef.current.behavior === 'walk') {
-        const period = snap.isDay ? behaviorConfig.day : behaviorConfig.night;
-        petCtxRef.current.walkBudget = period.walkBudgetMin;
-      }
-      advancePet(petRef.current, petCtxRef.current);
-      setBehavior(petRef.current.behavior);
-
-      const pixels = new Uint8Array(f.pixels);
-      drawPetWithSprites(pixels, petRef.current, frames as RawPetSprites);
-
-      const img = octx.createImageData(32, 32);
-      for (let i = 0; i < 1024; i++) {
-        img.data[i * 4] = pixels[i * 3]!;
-        img.data[i * 4 + 1] = pixels[i * 3 + 1]!;
-        img.data[i * 4 + 2] = pixels[i * 3 + 2]!;
-        img.data[i * 4 + 3] = 255;
-      }
-      octx.putImageData(img, 0, 0);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(offRef.current!, 0, 0, 32 * SCALE, 32 * SCALE);
-
-      frameIdxRef.current = (frameIdxRef.current + 1) % wFrames.length;
-      tickRef.current++;
-
-      if (ts - lastInfoRef.current >= 1000) {
-        setInfo(`${tickRef.current} fps · ${f.delayMs}ms · ${petRef.current.behavior} · x:${petRef.current.x} · editing: ${curFrame}`);
-        tickRef.current = 0;
-        lastInfoRef.current = ts;
-      }
-    }
-
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // ---- Painting ----
   // `frames` is in deps so we always close over the latest grid state
@@ -329,14 +208,6 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
     const defaults = await reset();
     if (defaults) setDraft({});
   }, [reset]);
-
-  const forceBehavior = useCallback((b: string) => {
-    setBehavior(b);
-    petRef.current.behavior = b as PetState['behavior'];
-    petRef.current.behaviorFrame = 0;
-    petCtxRef.current.behaviorDur = BEHAVIOR_DUR[b] ?? 0;
-    if (b === 'perch') petRef.current.perchY = PET_Y_WALK;
-  }, []);
 
   const gridRows = frames[curFrame];
   const gridWidth = 5 * CELL + 1;
@@ -405,7 +276,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          height: 'calc(100vh - 37px)',
+          height: '100%',
           background: '#101010',
           color: '#555',
           fontFamily: 'monospace',
@@ -418,8 +289,8 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
   }
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 37px)', overflow: 'hidden', background: '#101010' }}>
-      {/* ---- Editor panel ---- */}
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: '#101010' }}>
+      {/* ---- Sprite editor panel ---- */}
       <section
         style={{
           width: 372,
@@ -533,58 +404,12 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
         <div style={{ padding: '8px 12px', borderTop: '1px solid #2a2a2a' }} />
       </section>
 
-      {/* ---- Preview + controls panel ---- */}
+      {/* ---- Customization controls panel ---- */}
       <section
         style={{ flex: 1, display: 'flex', justifyContent: 'center', overflow: 'auto', background: 'radial-gradient(circle at top, #1c1c1c 0%, #101010 65%)' }}
       >
         <div style={{ width: 'min(100%, 720px)', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
-            <div style={{ padding: 18, border: '1px solid #2a2a2a', background: '#151515', boxShadow: '0 12px 30px rgba(0,0,0,0.28)' }}>
-              <canvas
-                ref={previewRef}
-                width={32 * SCALE}
-                height={32 * SCALE}
-                style={{ display: 'block', imageRendering: 'pixelated', border: '1px solid #333', background: '#0d0d0d' }}
-              />
-            </div>
-          </div>
-          <div style={{ textAlign: 'center', fontSize: 10, color: '#666', minHeight: 14 }}>{info}</div>
-
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-            {/* Weather */}
-            <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>WEATHER</h2>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-                Icon
-                <select value={iconVal} onChange={(e) => setIconVal(e.target.value)} style={inp}>
-                  {WEATHER_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-                Temp °C
-                <input type="number" value={temp} min={-30} max={50} style={inp} onChange={(e) => setTemp(Number(e.target.value))} />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-                Humidity {humidity}%
-                <input type="range" min={0} max={100} step={1} value={humidity} style={inp} onChange={(e) => setHumidity(Number(e.target.value))} />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-                Wind {windSpeed} km/h
-                <input type="range" min={0} max={60} step={1} value={windSpeed} style={inp} onChange={(e) => setWindSpeed(Number(e.target.value))} />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, fontSize: 10, color: '#666' }}>
-                Night <input type="checkbox" checked={night} onChange={(e) => setNight(e.target.checked)} />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
-                Speed ×{speed.toFixed(2)}
-                <input type="range" min={0.25} max={4} step={0.25} value={speed} style={inp} onChange={(e) => setSpeed(Number(e.target.value))} />
-              </label>
-            </div>
-
             {/* Palette editor */}
             <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>PALETTE</h2>
@@ -598,27 +423,9 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
               />
             </div>
 
-            {/* Pet behavior */}
+            {/* Pet behavior config */}
             <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>PET BEHAVIOR</h2>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {Object.keys(BEHAVIOR_DUR).map((b) => (
-                  <button
-                    key={b}
-                    onClick={() => forceBehavior(b)}
-                    style={{
-                      padding: '4px 8px',
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      background: behavior === b ? '#1a3a1a' : '#2a2a2a',
-                      color: behavior === b ? '#8f8' : '#bbb',
-                      border: `1px solid ${behavior === b ? '#4a8' : '#3a3a3a'}`,
-                    }}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 10, color: '#666' }}>
                 <span title="How many animation ticks the green burp residue stays on the floor before fading out completely." style={{ cursor: 'help' }}>
                   Burp residue TTL

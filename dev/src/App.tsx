@@ -1,10 +1,15 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import Connection from './components/Connection';
-import LogsPanel from './components/LogsPanel';
-import Simulator from './components/Simulator';
+import DevicePanel from './components/DevicePanel';
+import DiagnosticsPanel from './components/DiagnosticsPanel';
+import PreviewStage from './components/PreviewStage';
 import Studio, { type StudioNavActions } from './components/Studio';
 
-type Tab = 'preview' | 'studio' | 'logs' | 'connection';
+type Zone = 'device' | 'studio' | 'diagnostics';
+
+interface VersionInfo {
+  app: string;
+  schema: number;
+}
 
 const tabStyle = (active: boolean): CSSProperties => ({
   background: active ? '#1a3a1a' : '#2a2a2a',
@@ -14,15 +19,11 @@ const tabStyle = (active: boolean): CSSProperties => ({
   fontFamily: 'monospace',
   fontSize: 11,
   cursor: 'pointer',
+  letterSpacing: 1,
 });
 
-interface VersionInfo {
-  app: string;
-  schema: number;
-}
-
 export default function App() {
-  const [tab, setTab] = useState<Tab>('preview');
+  const [zone, setZone] = useState<Zone>('studio');
   const [studioNav, setStudioNav] = useState<StudioNavActions | null>(null);
   const [version, setVersion] = useState<VersionInfo | null>(null);
 
@@ -45,30 +46,26 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header
         style={{
           background: '#1e1e1e',
           borderBottom: '1px solid #333',
           padding: '6px 16px',
           display: 'flex',
-          gap: 16,
+          gap: 12,
           alignItems: 'center',
+          flexShrink: 0,
         }}
       >
         <span style={{ fontSize: 12, letterSpacing: 2, color: '#888' }}>iDOTMATRIX DEV TOOLS</span>
-        {version && (
-          <span style={{ fontSize: 9, color: '#555', fontFamily: 'monospace' }}>
-            v{version.app} · schema {version.schema}
-          </span>
-        )}
-        {(['preview', 'studio', 'logs', 'connection'] as Tab[]).map((t) => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
-            {t}
+        {(['device', 'studio', 'diagnostics'] as Zone[]).map((z) => (
+          <button key={z} style={tabStyle(zone === z)} onClick={() => setZone(z)}>
+            {z.toUpperCase()}
           </button>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {tab === 'studio' && studioNav && (
+          {zone === 'studio' && studioNav && (
             <>
               <span style={{ fontSize: 10, color: statusColor }}>● {statusText}</span>
               <button style={tabStyle(false)} onClick={studioNav.onDiscard}>
@@ -81,10 +78,28 @@ export default function App() {
           )}
         </div>
       </header>
-      {tab === 'preview' && <Simulator />}
-      {tab === 'studio' && <Studio onNavActionsChange={setStudioNav} />}
-      {tab === 'logs' && <LogsPanel />}
-      {tab === 'connection' && <Connection />}
+
+      <main style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Persistent preview — always visible regardless of active zone */}
+        <aside
+          style={{
+            width: 400,
+            flexShrink: 0,
+            borderRight: '1px solid #2a2a2a',
+            overflowY: 'auto',
+            background: '#101010',
+          }}
+        >
+          <PreviewStage />
+        </aside>
+
+        {/* Active zone content */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {zone === 'device' && <DevicePanel version={version} />}
+          {zone === 'studio' && <Studio onNavActionsChange={setStudioNav} />}
+          {zone === 'diagnostics' && <DiagnosticsPanel />}
+        </div>
+      </main>
     </div>
   );
 }

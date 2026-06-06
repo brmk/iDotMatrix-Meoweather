@@ -132,6 +132,47 @@ repo and restarts the stack. Boot-time startup is delegated to a user-level
   scripts, and the Actions workflow live with the app code so the Pi can be
   rebuilt from repo state instead of ad-hoc host mutations.
 
+## Frontend (dev/)
+
+Vite + React UI served on port 8766 (proxies `/api` to port 3000). Three zones,
+persistent preview:
+
+```
+┌─────────────────────────── App.tsx ───────────────────────────────┐
+│  Header: DEVICE | STUDIO | DIAGNOSTICS tabs + save-status         │
+│ ┌─────────────────────┬─────────────────────────────────────────┐ │
+│ │  PreviewStage       │  Active zone                            │ │
+│ │  (always visible)   │                                         │ │
+│ │  • 32×32 canvas     │  DEVICE   — Connection + brightness +   │ │
+│ │  • rAF / SSE frame  │             night-hours + power sched.  │ │
+│ │  • weather controls │                                         │ │
+│ │  • force-behavior   │  STUDIO   — Sprite grid editor +        │ │
+│ │  • LIVE badge       │             PaletteEditor + behavior     │ │
+│ │                     │             config panels               │ │
+│ │                     │                                         │ │
+│ │                     │  DIAGNOSTICS — health strip + LogsPanel │ │
+│ └─────────────────────┴─────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+**PreviewStage** is the single source of preview truth. It owns the rAF animation
+loop (`drawPet` reads from `render/pet/active.ts` singleton), the `/api/frame`
+SSE for live remote frames, and all weather/behavior playback controls. Studio
+keeps `setActiveCustomization()` in sync whenever the draft changes, so
+PreviewStage's loop immediately reflects unsaved sprite/palette edits.
+
+**Draft flow:** Studio's `useEffect` calls `setActiveCustomization(draft)` on
+every palette/sprite/behavior change → the module-level active singleton is
+updated → PreviewStage's rAF loop picks up the change on the next animation tick
+without any prop passing.
+
+**Device zone:** composes `Connection.tsx` (BLE scan/connect/pause) with
+brightness sliders, night-hours and power-schedule `TimeRangeClock` pickers
+(all from a single `/api/state` SSE subscription), and a version footer.
+
+**Diagnostics zone:** `DiagnosticsPanel.tsx` — health strip (5 s poll of
+`/api/sidecar/health`) + `LogsPanel` (virtualized SSE log viewer).
+
 ## Non-goals (for the MVP)
 
 - No remote/cloud control — BLE requires physical proximity.

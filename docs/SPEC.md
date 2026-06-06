@@ -135,12 +135,18 @@ All routes are served by the Node.js control server on port 3000.
 
 ## Current state
 
-Phase 4 (Studio + Palette Editor) is complete (2026-06-06). The Studio is now the
-production customization surface: it reads/writes `customization.json` through
-`GET/PUT /api/customization` instead of localStorage and the dev-only Vite
-plugins. A `PaletteEditor` component supports adding/removing/recoloring swatches
-(reserved roles `o g s l r` are locked). The app + schema version is shown in the
-Dev Tools header via `GET /api/version`.
+Phase 5 (UI restructure) is complete (2026-06-06). The Dev Tools web UI is now
+organised into **three zones** — **Device / Studio / Diagnostics** — with a
+persistent `PreviewStage` panel always visible on the left. The four flat tabs
+(preview / studio / logs / connection) are gone. Weather and behavior controls
+now live exclusively in `PreviewStage`; duplicated copies in Simulator and Studio
+have been removed. `Simulator.tsx` is deleted.
+
+Phase 4 (Studio + Palette Editor) was complete (2026-06-06). The Studio is the
+production customization surface: reads/writes `customization.json` through
+`GET/PUT /api/customization`. A `PaletteEditor` component supports
+adding/removing/recoloring swatches (reserved roles `o g s l r` are locked).
+Version shown in the Device panel footer via `GET /api/version`.
 
 Phase 3 (Backend API) was complete (2026-06-06). Phase 6 post-phase pet enhancements (2026-05-25):
 
