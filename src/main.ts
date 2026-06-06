@@ -3,8 +3,10 @@ import './logger.js';
 import { config } from './config.js';
 import { controlState } from './control-state.js';
 import { startControlServer } from './control.js';
+import { loadCustomization } from './customization/index.js';
 import { advancePet, makePetContext, type PetContext } from './pet/index.js';
 import { drawPet, PET_Y_WALK, pixelsToPng, renderAnimation, type AnimationFrame, type PetState } from './render/index.js';
+import { initActiveFromCustomization } from './render/pet/active.js';
 import { loadRuntimeConfig } from './runtime-config.js';
 import { sendToPanel } from './transport/index.js';
 import { fetchWeather } from './weather/index.js';
@@ -88,6 +90,7 @@ function applyBehaviorOverride(): void {
 // ---- Main loop ----
 
 async function run(): Promise<void> {
+  initActiveFromCustomization(loadCustomization());
   startControlServer();
 
   console.log(`Starting — sidecar ${config.sidecarUrl}`);

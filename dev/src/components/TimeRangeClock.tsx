@@ -50,6 +50,7 @@ function arcPath(fromH: number, toH: number): string {
 export default function TimeRangeClock({ from, to, onChange, onDragStart }: Readonly<TimeRangeClockProps>) {
   const svgRef = useRef<SVGSVGElement>(null);
   const draggingRef = useRef<'from' | 'to' | null>(null);
+  const [draggingHandle, setDraggingHandle] = useState<'from' | 'to' | null>(null);
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function TimeRangeClock({ from, to, onChange, onDragStart }: Read
     (handle: 'from' | 'to') => (e: React.PointerEvent) => {
       e.currentTarget.setPointerCapture(e.pointerId);
       draggingRef.current = handle;
+      setDraggingHandle(handle);
       onDragStart();
     },
     [onDragStart],
@@ -89,6 +91,7 @@ export default function TimeRangeClock({ from, to, onChange, onDragStart }: Read
 
   const onPointerUp = useCallback(() => {
     draggingRef.current = null;
+    setDraggingHandle(null);
   }, []);
 
   const [fx, fy] = hourToXY(from, TRACK_R);
@@ -104,7 +107,7 @@ export default function TimeRangeClock({ from, to, onChange, onDragStart }: Read
         viewBox="0 0 120 120"
         width={120}
         height={120}
-        style={{ touchAction: 'none', userSelect: 'none', cursor: draggingRef.current ? 'grabbing' : 'default' }}
+        style={{ touchAction: 'none', userSelect: 'none', cursor: draggingHandle ? 'grabbing' : 'default' }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}

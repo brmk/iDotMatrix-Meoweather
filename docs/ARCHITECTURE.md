@@ -65,7 +65,12 @@ The render subsystem is now split by concern rather than kept in a single file:
 - `render/text/` — glyph data, width measurement, and explicit text layout/draw
   helpers
 - `render/pet/` — pet palettes, sprite parsing/cache, behavior draw resolution,
-  and final overlay drawing
+  and final overlay drawing. `render/pet/active.ts` holds the runtime-active
+  customization (sprites, day/night palette, dream color, fade ramps, behavior
+  config), seeded at startup from `loadCustomization()` and hot-swappable via
+  `setActiveCustomization()`. The draw module reads exclusively from this holder;
+  `colors.ts`, `sprites.ts`, and `pet/config.ts` are now fallback defaults only.
+  → [[adr/0009-runtime-customization-store]]
 - `render/scene/` — scene description, frame composition, temperature
   formatting, and night tinting
 - `render/index.ts` — the stable render/PNG boundary exported to the rest of the

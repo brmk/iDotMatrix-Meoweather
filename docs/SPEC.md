@@ -26,9 +26,12 @@ autonomously — no phone app, no cloud, no interaction required.
 - **Test rendering against PNG files, not the panel.** The visual and the
   Bluetooth paths are debugged separately, never together.
 
-- **Sprite changes go through the Studio dev app.** Run `npm run dev:sim`, open
-  the Studio tab, edit and preview, click "Save sprites" → writes `src/sprites.ts`.
-  → [[adr/0005-pixel-pet-sprite-system]]
+- **Palette and sprite changes go through `setActiveCustomization()`.** At
+  runtime, `render/pet/active.ts` is the single source of truth for the live
+  palette, sprites, and behavior config. Code constants in `colors.ts`,
+  `sprites.ts`, and `pet/config.ts` are fallback defaults only; they are no
+  longer read directly by the draw module.
+  → [[adr/0009-runtime-customization-store]]
 
 ---
 
