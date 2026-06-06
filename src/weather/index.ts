@@ -26,7 +26,7 @@ export async function fetchWeather(): Promise<WeatherSnapshot> {
   url.searchParams.set('temperature_unit', 'celsius');
   url.searchParams.set('wind_speed_unit', 'kmh');
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`Open-Meteo fetch failed: HTTP ${res.status}`);
 
   const json = (await res.json()) as {

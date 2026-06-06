@@ -124,13 +124,13 @@ async function run(): Promise<void> {
       if (!matrixOff) {
         matrixOff = true;
         console.log(`[${new Date().toISOString()}] power schedule: matrix off`);
-        const black = pixelsToPng(new Uint8Array(32 * 32 * 3));
-        pushFrame(black.toString('base64'));
-        try {
-          await sendToPanel(black, 0);
-        } catch {
-          /* matrix may not be connected */
-        }
+      }
+      const black = pixelsToPng(new Uint8Array(32 * 32 * 3));
+      pushFrame(black.toString('base64'));
+      try {
+        await sendToPanel(black, 0);
+      } catch {
+        /* matrix may not be connected */
       }
       await sleep(30_000);
       continue;

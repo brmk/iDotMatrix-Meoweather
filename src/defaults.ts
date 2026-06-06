@@ -3,6 +3,6 @@ export const DEFAULTS = {
   nightBrightness: 25,
   nightHoursFrom: 22,
   nightHoursTo: 7,
-  powerOffFrom: 0,
+  powerOffFrom: 22,
   powerOffTo: 7,
 } as const;

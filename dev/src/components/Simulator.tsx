@@ -5,6 +5,7 @@ import { drawPet } from '@src/render/pet/draw';
 import { PET_Y_WALK } from '@src/render/pet/sprites';
 import { renderAnimationFrames as renderAnimation } from '@src/render/scene/frame';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import TimeRangeClock from './TimeRangeClock';
 
 const SCALE = 10;
 const BEHAVIOR_DUR: Record<string, number> = {
@@ -507,35 +508,20 @@ export default function Simulator() {
                 <label htmlFor="power-schedule-toggle">Matrix off hours</label>
               </div>
               {powerScheduleEnabled && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 20 }}>
-                  <input
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={powerOffFrom}
-                    style={{ ...ctrl, width: 48 }}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
+                <div style={{ paddingLeft: 20, paddingTop: 4 }}>
+                  <TimeRangeClock
+                    from={powerOffFrom}
+                    to={powerOffTo}
+                    onDragStart={() => {
                       markEditing('powerOffFrom');
-                      setPowerOffFrom(v);
-                      debouncedPostPowerSchedule(v, powerOffTo);
-                    }}
-                  />
-                  <span>–</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={powerOffTo}
-                    style={{ ...ctrl, width: 48 }}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
                       markEditing('powerOffTo');
-                      setPowerOffTo(v);
-                      debouncedPostPowerSchedule(powerOffFrom, v);
+                    }}
+                    onChange={(f, t) => {
+                      setPowerOffFrom(f);
+                      setPowerOffTo(t);
+                      debouncedPostPowerSchedule(f, t);
                     }}
                   />
-                  <span style={{ color: '#555', fontSize: 10 }}>h (matrix fully off)</span>
                 </div>
               )}
             </div>
