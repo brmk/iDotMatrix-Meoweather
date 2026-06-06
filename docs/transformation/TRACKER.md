@@ -9,7 +9,7 @@
 |---|-------|--------|-----------|-------------|------|-------|
 | 1 | [[phase-1-store-and-versioning]] | ✅ | — | `transform/phase-1-store-and-versioning` | 2026-06-06 | `CONFIG_PATH`=`customization.json` (project root, sibling of `runtime.json`). Backups: `customization.bak.v{N}.json`. Corrupt: `customization.corrupt.json`. `CURRENT_SCHEMA_VERSION=1`. Schema versioning covered in ADR-0009 (no separate ADR-0010). `runMigrationsWithTable` exported for test injection. |
 | 2 | [[phase-2-render-seam]] | ✅ | 1 | `transform/phase-2-render-seam` | 2026-06-06 | `NIGHT_FACTOR=0.5`. Residue ramps: use hardcoded defaults when g/s match; generate proportionally otherwise (hand-crafted ramps don't reproduce from uniform factor). `BEHAVIOR_DUR` replaced by `getBehaviorDur()` deriving from active config. `setActiveCustomization` exported for Phase 3 hot-swap. |
-| 3 | [[phase-3-backend-api]] | ⬜ | 1, 2 | | | |
+| 3 | [[phase-3-backend-api]] | ✅ | 1, 2 | `transform/phase-3-backend-api` | 2026-06-06 | `GET/PUT /api/customization`, `POST /api/customization/reset`, `GET /api/version`. Hot-swap via `setActiveCustomization` after every write. Dev-only Vite `/save-sprites`+`/save-pet-config` plugins retained as optional export helpers — production write path is now the real API. |
 | 4 | [[phase-4-studio-and-palette-editor]] | ⬜ | 3 | | | |
 | 5 | [[phase-5-ui-restructure]] | ⬜ | 4 | | | |
 | 6 | [[phase-6-mobile-and-touch]] | ⬜ | 5 | | | |
@@ -41,6 +41,7 @@ P5/P6 reshape the UI. P7 is maturity polish (needs the unified UI from P5).
   proportional ramps using fixed per-step factors. Rationale: the original hand-crafted ramps cannot
   be reproduced from base color alone (step ratios vary per channel).
 - **ADR-0010 decision:** schema versioning strategy is covered in ADR-0009 (not a separate ADR).
+- **Export-to-code path (P3):** Dev-only Vite plugins (`/save-sprites`, `/save-pet-config`) are retained as optional helpers for committing updated defaults back to source. Production never depends on them. Phase 4 (Studio) uses `PUT /api/customization` exclusively.
 
 ## Teardown checklist (closing agent)
 

@@ -6,8 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import type { BrightnessConfig, NightHours, PowerSchedule } from './control-state.js';
 import { controlState } from './control-state.js';
+import { loadCustomization, resetCustomization, saveCustomization } from './customization/index.js';
+import type { Customization } from './customization/schema.js';
+import { CURRENT_SCHEMA_VERSION } from './customization/schema.js';
 import { logStore } from './log-store.js';
-import { getActive } from './render/pet/active.js';
+import { getActive, setActiveCustomization } from './render/pet/active.js';
 import type { PetBehavior } from './render/pet/types.js';
 import { saveRuntimeConfig } from './runtime-config.js';
 import type { WeatherSnapshot } from './weather/index.js';
@@ -15,6 +18,9 @@ import type { WeatherSnapshot } from './weather/index.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UI_DIR = resolve(__dirname, '..', 'dist-dev');
 const LOG_STREAM_HEARTBEAT_MS = 15_000;
+
+const _pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf8')) as { version: string };
+const APP_VERSION = _pkg.version;
 
 function getBehaviorDur(behavior: string): number {
   if (behavior === 'walk') return 0;
@@ -104,6 +110,42 @@ function currentHealth() {
 }
 
 // ---- Route handlers ----
+
+function routeVersion(res: ServerResponse): void {
+  json(res, 200, { app: APP_VERSION, schema: CURRENT_SCHEMA_VERSION });
+}
+
+function routeCustomizationGet(res: ServerResponse): void {
+  json(res, 200, loadCustomization());
+}
+
+async function routeCustomizationPut(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readBody(req);
+  let patch: unknown;
+  try {
+    patch = JSON.parse(body);
+  } catch {
+    json(res, 400, { error: 'invalid JSON' });
+    return;
+  }
+  if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
+    json(res, 400, { error: 'body must be a JSON object' });
+    return;
+  }
+  try {
+    const saved = saveCustomization(patch as Partial<Customization>);
+    setActiveCustomization(saved);
+    json(res, 200, saved);
+  } catch (err) {
+    json(res, 400, { error: err instanceof Error ? err.message : 'invalid customization' });
+  }
+}
+
+function routeCustomizationReset(res: ServerResponse): void {
+  const defaults = resetCustomization();
+  setActiveCustomization(defaults);
+  json(res, 200, defaults);
+}
 
 function routeHealth(res: ServerResponse): void {
   json(res, 200, currentHealth());
@@ -338,6 +380,8 @@ function dispatchGet(req: IncomingMessage, res: ServerResponse, url: URL, heartb
   if (path === '/api/frame') return routeFrame(req, res);
   if (path === '/api/logs') return routeLogsSnapshot(res, url);
   if (path === '/api/logs/stream') return routeLogsStream(req, res, url, heartbeatMs);
+  if (path === '/api/customization') return routeCustomizationGet(res);
+  if (path === '/api/version') return routeVersion(res);
   if (path.startsWith('/api/sidecar/')) {
     const sidePath = '/' + path.slice('/api/sidecar/'.length);
     proxySidecar(res, sidePath, 'GET').catch(() => json(res, 503, { error: 'sidecar unavailable' }));
@@ -359,12 +403,18 @@ async function dispatchPost(req: IncomingMessage, res: ServerResponse, path: str
     json(res, 200, { ok: true });
     return;
   }
+  if (path === '/api/customization/reset') return routeCustomizationReset(res);
   if (path.startsWith('/api/sidecar/')) {
     const sidePath = '/' + path.slice('/api/sidecar/'.length);
     const body = await readBody(req);
     const parsed = body ? (JSON.parse(body) as unknown) : undefined;
     return proxySidecar(res, sidePath, 'POST', parsed);
   }
+  json(res, 404, { error: 'not found' });
+}
+
+async function dispatchPut(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
+  if (path === '/api/customization') return routeCustomizationPut(req, res);
   json(res, 404, { error: 'not found' });
 }
 
@@ -379,7 +429,7 @@ export function createRequestHandler(options: { logStreamHeartbeatMs?: number } 
     if (method === 'OPTIONS') {
       res.writeHead(204, {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT',
         'Access-Control-Allow-Headers': 'Content-Type',
       });
       res.end();
@@ -388,6 +438,7 @@ export function createRequestHandler(options: { logStreamHeartbeatMs?: number } 
 
     if (method === 'GET') return dispatchGet(req, res, url, heartbeatMs);
     if (method === 'POST') return dispatchPost(req, res, path);
+    if (method === 'PUT') return dispatchPut(req, res, path);
     json(res, 404, { error: 'not found' });
   };
 }
