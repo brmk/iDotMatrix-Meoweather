@@ -154,6 +154,31 @@ All variables have hard-coded fallbacks; `.env` is optional.
 
 ---
 
+## Customize colors and sprites in the Studio
+
+The Studio tab in the Dev Tools UI (`npm run dev`) is the production surface for
+editing palette colors, sprite pixel art, and pet behavior config.
+
+1. Run `npm run dev` (full stack — both backend API and frontend must be running).
+2. Open `http://localhost:8766` and click **Studio**.
+3. Edit sprites by clicking the frame tabs and painting on the pixel grid.
+4. Edit palette colors in the **PALETTE** panel: change day/night colors, add custom
+   swatches, or remove unused ones. Reserved roles (`o g s l r`) can be recolored
+   but not removed.
+5. Edit behavior probabilities and durations in the behavior panels.
+6. Click **Save all** (header) to persist via `PUT /api/customization`.
+   The live render hot-swaps immediately — no restart needed.
+7. Click **Discard** to reset to the last saved defaults (`POST /api/customization/reset`).
+
+> `npm run dev:sim` (UI only) can render the Studio preview but cannot save —
+> `PUT /api/customization` requires the backend. Use `npm run dev` for editing.
+
+The persisted file is `customization.json` at the project root (sibling of
+`runtime.json`). It is gitignored — user data, not source. To commit updated
+code defaults, export the designed sprites/palette back to the source files via
+the dev-only `/save-sprites` / `/save-pet-config` Vite plugin helpers (dev
+environment only).
+
 ## Inspect and reset customization
 
 ```bash

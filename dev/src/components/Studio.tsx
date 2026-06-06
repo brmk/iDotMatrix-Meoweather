@@ -1,14 +1,18 @@
+import type { Swatch } from '@src/customization/schema';
 import { EDITABLE_BEHAVIORS, PET_BEHAVIOR_CONFIG, type BehaviorChanceConfig, type BehaviorPeriodConfig, type PetBehaviorConfig } from '@src/pet/config';
 import type { PetContext, PetState } from '@src/pet/index';
 import { advancePet, makePetContext } from '@src/pet/index';
-import { PET_DAY } from '@src/render/pet/colors';
+import { setActiveCustomization } from '@src/render/pet/active';
 import { drawPetWithSprites } from '@src/render/pet/draw';
 import { PET_Y_WALK } from '@src/render/pet/sprites';
+import type { RawPetSprites } from '@src/render/pet/types';
 import { renderAnimationFrames as renderAnimation } from '@src/render/scene/frame';
 import { RAW_SPRITES, type SpriteKey } from '@src/sprites';
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCustomization } from '../useCustomization';
+import PaletteEditor from './PaletteEditor';
 
-// ---- constants derived from src/ — no duplication ----
+// ---- constants ----
 const FRAME_ORDER: SpriteKey[] = [
   'WALK_A',
   'WALK_B',
@@ -29,12 +33,6 @@ const FRAME_ORDER: SpriteKey[] = [
   'POO_B',
 ];
 
-const PALETTE_KEYS = ['.', 'o', 'g', 's', 'l', 'r'];
-const COLOR_CSS: Record<string, string> = {
-  '.': '#111',
-  ...Object.fromEntries(Object.entries(PET_DAY).map(([k, [r, g, b]]) => [k, `rgb(${r},${g},${b})`])),
-};
-
 const BEHAVIOR_DUR: Record<string, number> = {
   walk: 0,
   sit: 60,
@@ -45,6 +43,7 @@ const BEHAVIOR_DUR: Record<string, number> = {
   burp: 12,
   poo: 10,
 };
+
 const WEATHER_OPTIONS = [
   { value: '0_day', label: '☀ Clear Day' },
   { value: '0_night', label: '🌙 Clear Night' },
@@ -60,7 +59,25 @@ const WEATHER_OPTIONS = [
 const CELL = 48;
 const SCALE = 10;
 
-type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
+const CODE_BEHAVIOR_CONFIG: PetBehaviorConfig = structuredClone(PET_BEHAVIOR_CONFIG);
+
+function defaultFrames(): Record<SpriteKey, string[]> {
+  return Object.fromEntries(FRAME_ORDER.map((k) => [k, [...RAW_SPRITES[k]]])) as Record<SpriteKey, string[]>;
+}
+
+function defaultBehaviorConfig(): PetBehaviorConfig {
+  return structuredClone(CODE_BEHAVIOR_CONFIG);
+}
+
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function sumChances(period: BehaviorPeriodConfig): number {
+  return EDITABLE_BEHAVIORS.reduce((sum, behavior) => sum + (period.transitions[behavior]?.chance ?? 0), 0);
+}
+
+export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
 
 export interface StudioNavActions {
   saveStatus: SaveStatus;
@@ -72,85 +89,37 @@ interface StudioProps {
   onNavActionsChange?: (actions: StudioNavActions | null) => void;
 }
 
-function defaultFrames(): Record<SpriteKey, string[]> {
-  return Object.fromEntries(FRAME_ORDER.map((k) => [k, [...RAW_SPRITES[k]]])) as Record<SpriteKey, string[]>;
-}
-
-function loadFromLS(): Record<SpriteKey, string[]> {
-  try {
-    const raw = localStorage.getItem('studio_frames');
-    if (raw) {
-      const saved = JSON.parse(raw) as Partial<Record<SpriteKey, string[]>>;
-      return Object.fromEntries(FRAME_ORDER.map((k) => [k, saved[k] ?? [...RAW_SPRITES[k]]])) as Record<SpriteKey, string[]>;
-    }
-  } catch {
-    /* ignore */
-  }
-  return defaultFrames();
-}
-
-const CODE_BEHAVIOR_CONFIG: PetBehaviorConfig = structuredClone(PET_BEHAVIOR_CONFIG);
-
-function defaultBehaviorConfig(): PetBehaviorConfig {
-  return structuredClone(CODE_BEHAVIOR_CONFIG);
-}
-
-function syncBehaviorConfigRuntime(config: PetBehaviorConfig): void {
-  PET_BEHAVIOR_CONFIG.initialBlinkMin = config.initialBlinkMin;
-  PET_BEHAVIOR_CONFIG.initialBlinkMax = config.initialBlinkMax;
-  PET_BEHAVIOR_CONFIG.repeatBlinkMin = config.repeatBlinkMin;
-  PET_BEHAVIOR_CONFIG.repeatBlinkMax = config.repeatBlinkMax;
-  PET_BEHAVIOR_CONFIG.burpResidueTTL = config.burpResidueTTL;
-  PET_BEHAVIOR_CONFIG.pooResidueTTL = config.pooResidueTTL;
-  PET_BEHAVIOR_CONFIG.day = structuredClone(config.day);
-  PET_BEHAVIOR_CONFIG.night = structuredClone(config.night);
-}
-
-function mergeWithDefaults(saved: PetBehaviorConfig, defaults: PetBehaviorConfig): PetBehaviorConfig {
-  return {
-    ...defaults,
-    ...saved,
-    day: {
-      ...defaults.day,
-      ...saved.day,
-      transitions: { ...defaults.day.transitions, ...saved.day?.transitions },
-    },
-    night: {
-      ...defaults.night,
-      ...saved.night,
-      transitions: { ...defaults.night.transitions, ...saved.night?.transitions },
-    },
-  };
-}
-
-function loadBehaviorConfigFromLS(): PetBehaviorConfig {
-  try {
-    const raw = localStorage.getItem('studio_behavior_config');
-    if (raw) return mergeWithDefaults(JSON.parse(raw) as PetBehaviorConfig, defaultBehaviorConfig());
-  } catch {
-    /* ignore */
-  }
-  return defaultBehaviorConfig();
-}
-
-function saveBehaviorConfigToLS(config: PetBehaviorConfig): void {
-  localStorage.setItem('studio_behavior_config', JSON.stringify(config));
-}
-
-function percent(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
-function sumChances(period: BehaviorPeriodConfig): number {
-  return EDITABLE_BEHAVIORS.reduce((sum, behavior) => sum + (period.transitions[behavior]?.chance ?? 0), 0);
+// User's local edits layered on top of the server customization.
+// Empty = use server state as-is. Cleared after save/reset.
+interface Draft {
+  frames?: Record<SpriteKey, string[]>;
+  behaviorConfig?: PetBehaviorConfig;
+  palette?: Swatch[];
 }
 
 export default function Studio({ onNavActionsChange }: StudioProps) {
-  const [frames, setFrames] = useState<Record<SpriteKey, string[]>>(loadFromLS);
-  const [behaviorConfig, setBehaviorConfig] = useState<PetBehaviorConfig>(loadBehaviorConfigFromLS);
+  const { customization, saveStatus, markUnsaved, save, reset } = useCustomization();
+
+  // Draft tracks unsaved edits; initialised from server customization during first render.
+  // No useEffect needed — computed values are derived directly in render.
+  const [draft, setDraft] = useState<Draft>({});
+
+  const initialized = customization !== null;
+  const frames = useMemo<Record<SpriteKey, string[]>>(
+    () => draft.frames ?? (customization?.sprites as Record<SpriteKey, string[]>) ?? defaultFrames(),
+    [draft.frames, customization],
+  );
+  const behaviorConfig = useMemo<PetBehaviorConfig>(
+    () => draft.behaviorConfig ?? customization?.behavior ?? defaultBehaviorConfig(),
+    [draft.behaviorConfig, customization],
+  );
+  const palette = useMemo<Swatch[]>(
+    () => draft.palette ?? customization?.palette ?? [],
+    [draft.palette, customization],
+  );
+
   const [curFrame, setCurFrame] = useState<SpriteKey>('WALK_A');
   const [selColor, setSelColor] = useState('o');
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
 
   const [iconVal, setIconVal] = useState('0_day');
   const [temp, setTemp] = useState(20);
@@ -186,22 +155,41 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
   const tickRef = useRef(0);
   const rafRef = useRef(0);
 
-  const liveRef = useRef({
-    frames,
-    iconVal,
-    temp,
-    humidity,
-    windSpeed,
-    night,
-    speed,
-    behaviorConfig,
-  });
+  // Build CSS color map from live palette
+  const colorCss = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = { '.': '#111' };
+    for (const swatch of palette) {
+      const [r, g, b] = swatch.day;
+      map[swatch.key] = `rgb(${r},${g},${b})`;
+    }
+    return map;
+  }, [palette]);
+
+  // Keep browser-side renderer in sync with editable state for live preview.
+  // setActiveCustomization updates colors/sprites; PET_BEHAVIOR_CONFIG mutation keeps advancePet in sync.
+  useEffect(() => {
+    if (!initialized) return;
+    setActiveCustomization({
+      schemaVersion: 1,
+      palette,
+      sprites: frames as RawPetSprites,
+      behavior: behaviorConfig,
+    });
+    // advancePet reads PET_BEHAVIOR_CONFIG directly (module-level), so we must mirror edits
+    PET_BEHAVIOR_CONFIG.initialBlinkMin = behaviorConfig.initialBlinkMin;
+    PET_BEHAVIOR_CONFIG.initialBlinkMax = behaviorConfig.initialBlinkMax;
+    PET_BEHAVIOR_CONFIG.repeatBlinkMin = behaviorConfig.repeatBlinkMin;
+    PET_BEHAVIOR_CONFIG.repeatBlinkMax = behaviorConfig.repeatBlinkMax;
+    PET_BEHAVIOR_CONFIG.burpResidueTTL = behaviorConfig.burpResidueTTL;
+    PET_BEHAVIOR_CONFIG.pooResidueTTL = behaviorConfig.pooResidueTTL;
+    PET_BEHAVIOR_CONFIG.day = structuredClone(behaviorConfig.day);
+    PET_BEHAVIOR_CONFIG.night = structuredClone(behaviorConfig.night);
+  }, [palette, frames, behaviorConfig, initialized]);
+
+  const liveRef = useRef({ frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig });
   useEffect(() => {
     liveRef.current = { frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig };
   }, [frames, iconVal, temp, humidity, windSpeed, night, speed, behaviorConfig]);
-  useEffect(() => {
-    syncBehaviorConfigRuntime(behaviorConfig);
-  }, [behaviorConfig]);
 
   // ---- Draw grid ----
   useEffect(() => {
@@ -215,7 +203,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
     for (let r = 0; r < rows.length; r++) {
       for (let c = 0; c < 5; c++) {
         const ch = rows[r]?.[c] ?? '.';
-        ctx.fillStyle = COLOR_CSS[ch] ?? '#111';
+        ctx.fillStyle = colorCss[ch] ?? '#111';
         ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 1, CELL - 1);
         if (ch !== '.') {
           ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -240,15 +228,11 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
       ctx.lineTo(5 * CELL, i * CELL + 0.5);
       ctx.stroke();
     }
-  }, [frames, curFrame]);
+  }, [frames, curFrame, colorCss]);
 
   // ---- Preview loop ----
   useEffect(() => {
-    if (!offRef.current)
-      offRef.current = Object.assign(document.createElement('canvas'), {
-        width: 32,
-        height: 32,
-      });
+    if (!offRef.current) offRef.current = Object.assign(document.createElement('canvas'), { width: 32, height: 32 });
     const canvas = previewRef.current!;
     const ctx = canvas.getContext('2d')!;
     const octx = offRef.current.getContext('2d')!;
@@ -259,24 +243,8 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
       const raw = iconVal;
       const snap =
         raw === '0_night'
-          ? {
-              weatherCode: 0,
-              isDay: false,
-              temperature: temp,
-              humidity,
-              windSpeed,
-              windDirection: 0,
-              fetchedAt: new Date(),
-            }
-          : {
-              weatherCode: Number.parseInt(raw, 10),
-              isDay: !night,
-              temperature: temp,
-              humidity,
-              windSpeed,
-              windDirection: 0,
-              fetchedAt: new Date(),
-            };
+          ? { weatherCode: 0, isDay: false, temperature: temp, humidity, windSpeed, windDirection: 0, fetchedAt: new Date() }
+          : { weatherCode: Number.parseInt(raw, 10), isDay: !night, temperature: temp, humidity, windSpeed, windDirection: 0, fetchedAt: new Date() };
       const wFrames = renderAnimation(snap);
       if (!wFrames.length) return;
 
@@ -293,7 +261,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
       setBehavior(petRef.current.behavior);
 
       const pixels = new Uint8Array(f.pixels);
-      drawPetWithSprites(pixels, petRef.current, frames as Record<SpriteKey, string[]>);
+      drawPetWithSprites(pixels, petRef.current, frames as RawPetSprites);
 
       const img = octx.createImageData(32, 32);
       for (let i = 0; i < 1024; i++) {
@@ -322,6 +290,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
   }, []);
 
   // ---- Painting ----
+  // `frames` is in deps so we always close over the latest grid state
   const paintAt = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>, forceErase = false) => {
       const canvas = gridRef.current!;
@@ -329,22 +298,16 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
       const col = Math.floor(((e.clientX - rect.left) * (canvas.width / rect.width)) / CELL);
       const row = Math.floor(((e.clientY - rect.top) * (canvas.height / rect.height)) / CELL);
       const color = forceErase ? '.' : selColor;
-      setFrames((prev) => {
-        const rows = prev[curFrame];
-        if (row < 0 || row >= rows.length || col < 0 || col >= 5) return prev;
-        const rowArr = [...(rows[row] ?? '')];
-        if (rowArr[col] === color) return prev;
-        rowArr[col] = color;
-        const next = {
-          ...prev,
-          [curFrame]: rows.map((r, i) => (i === row ? rowArr.join('') : r)),
-        };
-        localStorage.setItem('studio_frames', JSON.stringify(next));
-        return next;
-      });
-      setSaveStatus('unsaved');
+      const rows = frames[curFrame];
+      if (row < 0 || row >= rows.length || col < 0 || col >= 5) return;
+      const rowArr = [...(rows[row] ?? '')];
+      if (rowArr[col] === color) return;
+      rowArr[col] = color;
+      const newFrames = { ...frames, [curFrame]: rows.map((r, i) => (i === row ? rowArr.join('') : r)) };
+      setDraft((d) => ({ ...d, frames: newFrames }));
+      markUnsaved();
     },
-    [curFrame, selColor],
+    [curFrame, selColor, markUnsaved, frames],
   );
 
   useEffect(() => {
@@ -357,37 +320,15 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
 
   // ---- Save / reset ----
   const handleSave = useCallback(async () => {
-    setSaveStatus('saving');
-    try {
-      const spriteRes = await fetch('/save-sprites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(frames),
-      });
-      if (!spriteRes.ok) throw new Error(await spriteRes.text());
-      const configRes = await fetch('/save-pet-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(behaviorConfig),
-      });
-      if (!configRes.ok) throw new Error(await configRes.text());
-      setSaveStatus('saved');
-    } catch (e) {
-      console.error(e);
-      setSaveStatus('error');
-    }
-  }, [frames, behaviorConfig]);
+    const saved = await save({ sprites: frames as RawPetSprites, behavior: behaviorConfig, palette });
+    if (saved) setDraft({});
+  }, [frames, behaviorConfig, palette, save]);
 
-  const handleReset = useCallback(() => {
-    if (!confirm('Discard local Studio changes and reload values from code?')) return;
-    const d = defaultFrames();
-    setFrames(d);
-    localStorage.setItem('studio_frames', JSON.stringify(d));
-    const config = defaultBehaviorConfig();
-    setBehaviorConfig(config);
-    saveBehaviorConfigToLS(config);
-    setSaveStatus('saved');
-  }, []);
+  const handleReset = useCallback(async () => {
+    if (!confirm('Reset to defaults from server? All unsaved Studio changes will be lost.')) return;
+    const defaults = await reset();
+    if (defaults) setDraft({});
+  }, [reset]);
 
   const forceBehavior = useCallback((b: string) => {
     setBehavior(b);
@@ -403,7 +344,6 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
   const dayTotal = sumChances(behaviorConfig.day);
   const nightTotal = sumChances(behaviorConfig.night);
 
-  // ---- Shared input styles ----
   const inp: CSSProperties = {
     background: '#222',
     color: '#ccc',
@@ -415,25 +355,28 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
   };
   const numInp: CSSProperties = { ...inp, width: 72 };
 
-  const updatePeriod = useCallback((periodKey: 'day' | 'night', updater: (period: BehaviorPeriodConfig) => BehaviorPeriodConfig) => {
-    setBehaviorConfig((prev) => {
-      const next = { ...prev, [periodKey]: updater(prev[periodKey]) };
-      saveBehaviorConfigToLS(next);
-      return next;
-    });
-    setSaveStatus('unsaved');
-  }, []);
+  // `behaviorConfig` in deps so the functional update captures the latest value
+  const updatePeriod = useCallback(
+    (periodKey: 'day' | 'night', updater: (period: BehaviorPeriodConfig) => BehaviorPeriodConfig) => {
+      setDraft((d) => {
+        const prev = d.behaviorConfig ?? behaviorConfig;
+        return { ...d, behaviorConfig: { ...prev, [periodKey]: updater(prev[periodKey]) } };
+      });
+      markUnsaved();
+    },
+    [markUnsaved, behaviorConfig],
+  );
 
   const updateChance = useCallback(
-    (periodKey: 'day' | 'night', behavior: keyof BehaviorPeriodConfig['transitions'], field: keyof BehaviorChanceConfig, value: number) => {
+    (periodKey: 'day' | 'night', beh: keyof BehaviorPeriodConfig['transitions'], field: keyof BehaviorChanceConfig, value: number) => {
       updatePeriod(periodKey, (period) => ({
         ...period,
         transitions: {
           ...period.transitions,
-          [behavior]: {
-            chance: period.transitions[behavior]?.chance ?? 0,
-            minDuration: period.transitions[behavior]?.minDuration ?? 0,
-            maxDuration: period.transitions[behavior]?.maxDuration ?? 0,
+          [beh]: {
+            chance: period.transitions[beh]?.chance ?? 0,
+            minDuration: period.transitions[beh]?.minDuration ?? 0,
+            maxDuration: period.transitions[beh]?.maxDuration ?? 0,
             [field]: field === 'chance' ? Math.max(0, Math.min(1, value)) : Math.max(0, Math.floor(value)),
           },
         },
@@ -448,20 +391,34 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
       onSave: () => {
         void handleSave();
       },
-      onDiscard: handleReset,
+      onDiscard: () => {
+        void handleReset();
+      },
     });
     return () => onNavActionsChange?.(null);
   }, [onNavActionsChange, saveStatus, handleSave, handleReset]);
 
+  if (!initialized) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: 'calc(100vh - 37px)',
+          background: '#101010',
+          color: '#555',
+          fontFamily: 'monospace',
+          fontSize: 12,
+        }}
+      >
+        Loading customization…
+      </div>
+    );
+  }
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: 'calc(100vh - 37px)',
-        overflow: 'hidden',
-        background: '#101010',
-      }}
-    >
+    <div style={{ display: 'flex', height: 'calc(100vh - 37px)', overflow: 'hidden', background: '#101010' }}>
       {/* ---- Editor panel ---- */}
       <section
         style={{
@@ -475,16 +432,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
         }}
       >
         {/* Frame tabs */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 2,
-            padding: 6,
-            background: '#1a1a1a',
-            borderBottom: '1px solid #2a2a2a',
-          }}
-        >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, padding: 6, background: '#1a1a1a', borderBottom: '1px solid #2a2a2a' }}>
           {FRAME_ORDER.map((name) => (
             <button
               key={name}
@@ -504,16 +452,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
         </div>
 
         {/* Grid canvas */}
-        <div
-          style={{
-            flex: 1,
-            padding: 16,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            overflow: 'auto',
-          }}
-        >
+        <div style={{ flex: 1, padding: 16, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto' }}>
           <canvas
             ref={gridRef}
             style={{
@@ -541,139 +480,81 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
           />
         </div>
 
-        {/* Palette */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 6,
-            padding: '8px 12px',
-            flexWrap: 'wrap',
-            borderTop: '1px solid #2a2a2a',
-          }}
-        >
-          {PALETTE_KEYS.map((k) => (
-            <div
-              key={k}
-              onClick={() => setSelColor(k)}
-              title={k === '.' ? 'erase' : k}
-              style={{
-                width: 36,
-                height: 36,
-                background: COLOR_CSS[k],
-                cursor: 'pointer',
-                border: `2px solid ${selColor === k ? '#fff' : '#444'}`,
-                boxShadow: selColor === k ? '0 0 0 2px #fff4' : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 14,
-                fontWeight: 'bold',
-                color: 'rgba(0,0,0,0.7)',
-              }}
-            >
-              {k === '.' ? '✕' : k}
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: '8px 12px',
-            borderTop: '1px solid #2a2a2a',
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-          }}
-        />
-      </section>
-
-      {/* ---- Preview panel ---- */}
-      <section
-        style={{
-          flex: 1,
-          display: 'flex',
-          justifyContent: 'center',
-          overflow: 'auto',
-          background: 'radial-gradient(circle at top, #1c1c1c 0%, #101010 65%)',
-        }}
-      >
-        <div
-          style={{
-            width: 'min(100%, 720px)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 18,
-          }}
-        >
+        {/* Palette toolbar */}
+        <div style={{ display: 'flex', gap: 6, padding: '8px 12px', flexWrap: 'wrap', borderTop: '1px solid #2a2a2a' }}>
+          {palette.map((swatch) => {
+            const css = colorCss[swatch.key] ?? '#111';
+            return (
+              <div
+                key={swatch.key}
+                onClick={() => setSelColor(swatch.key)}
+                title={swatch.key}
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: css,
+                  cursor: 'pointer',
+                  border: `2px solid ${selColor === swatch.key ? '#fff' : '#444'}`,
+                  boxShadow: selColor === swatch.key ? '0 0 0 2px #fff4' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  color: 'rgba(0,0,0,0.7)',
+                }}
+              >
+                {swatch.key}
+              </div>
+            );
+          })}
           <div
+            onClick={() => setSelColor('.')}
+            title="erase"
             style={{
+              width: 36,
+              height: 36,
+              background: '#111',
+              cursor: 'pointer',
+              border: `2px solid ${selColor === '.' ? '#fff' : '#444'}`,
+              boxShadow: selColor === '.' ? '0 0 0 2px #fff4' : 'none',
               display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
-              padding: '8px 0 4px',
+              fontSize: 14,
+              fontWeight: 'bold',
+              color: 'rgba(255,255,255,0.4)',
             }}
           >
-            <div
-              style={{
-                padding: 18,
-                border: '1px solid #2a2a2a',
-                background: '#151515',
-                boxShadow: '0 12px 30px rgba(0,0,0,0.28)',
-              }}
-            >
+            ✕
+          </div>
+        </div>
+
+        <div style={{ padding: '8px 12px', borderTop: '1px solid #2a2a2a' }} />
+      </section>
+
+      {/* ---- Preview + controls panel ---- */}
+      <section
+        style={{ flex: 1, display: 'flex', justifyContent: 'center', overflow: 'auto', background: 'radial-gradient(circle at top, #1c1c1c 0%, #101010 65%)' }}
+      >
+        <div style={{ width: 'min(100%, 720px)', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
+            <div style={{ padding: 18, border: '1px solid #2a2a2a', background: '#151515', boxShadow: '0 12px 30px rgba(0,0,0,0.28)' }}>
               <canvas
                 ref={previewRef}
                 width={32 * SCALE}
                 height={32 * SCALE}
-                style={{
-                  display: 'block',
-                  imageRendering: 'pixelated',
-                  border: '1px solid #333',
-                  background: '#0d0d0d',
-                }}
+                style={{ display: 'block', imageRendering: 'pixelated', border: '1px solid #333', background: '#0d0d0d' }}
               />
             </div>
           </div>
-          <div
-            style={{
-              textAlign: 'center',
-              fontSize: 10,
-              color: '#666',
-              minHeight: 14,
-            }}
-          >
-            {info}
-          </div>
+          <div style={{ textAlign: 'center', fontSize: 10, color: '#666', minHeight: 14 }}>{info}</div>
 
-          {/* Controls */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: 14,
-            }}
-          >
-            <div
-              style={{
-                padding: 14,
-                border: '1px solid #2a2a2a',
-                background: '#141414',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-              }}
-            >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+            {/* Weather */}
+            <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>WEATHER</h2>
-              <label
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  fontSize: 10,
-                  color: '#666',
-                }}
-              >
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
                 Icon
                 <select value={iconVal} onChange={(e) => setIconVal(e.target.value)} style={inp}>
                   {WEATHER_OPTIONS.map((o) => (
@@ -683,15 +564,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                   ))}
                 </select>
               </label>
-              <label
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  fontSize: 10,
-                  color: '#666',
-                }}
-              >
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
                 Temp °C
                 <input type="number" value={temp} min={-30} max={50} style={inp} onChange={(e) => setTemp(Number(e.target.value))} />
               </label>
@@ -703,42 +576,30 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                 Wind {windSpeed} km/h
                 <input type="range" min={0} max={60} step={1} value={windSpeed} style={inp} onChange={(e) => setWindSpeed(Number(e.target.value))} />
               </label>
-              <label
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 10,
-                  color: '#666',
-                }}
-              >
+              <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, fontSize: 10, color: '#666' }}>
                 Night <input type="checkbox" checked={night} onChange={(e) => setNight(e.target.checked)} />
               </label>
-              <label
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  fontSize: 10,
-                  color: '#666',
-                }}
-              >
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, color: '#666' }}>
                 Speed ×{speed.toFixed(2)}
                 <input type="range" min={0.25} max={4} step={0.25} value={speed} style={inp} onChange={(e) => setSpeed(Number(e.target.value))} />
               </label>
             </div>
 
-            <div
-              style={{
-                padding: 14,
-                border: '1px solid #2a2a2a',
-                background: '#141414',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-              }}
-            >
+            {/* Palette editor */}
+            <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>PALETTE</h2>
+              <PaletteEditor
+                palette={palette}
+                sprites={frames}
+                onChange={(p) => {
+                  setDraft((d) => ({ ...d, palette: p }));
+                  markUnsaved();
+                }}
+              />
+            </div>
+
+            {/* Pet behavior */}
+            <div style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <h2 style={{ fontSize: 10, color: '#555', letterSpacing: 1 }}>PET BEHAVIOR</h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {Object.keys(BEHAVIOR_DUR).map((b) => (
@@ -758,16 +619,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                   </button>
                 ))}
               </div>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                  fontSize: 10,
-                  color: '#666',
-                }}
-              >
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 10, color: '#666' }}>
                 <span title="How many animation ticks the green burp residue stays on the floor before fading out completely." style={{ cursor: 'help' }}>
                   Burp residue TTL
                 </span>
@@ -777,28 +629,15 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                   value={behaviorConfig.burpResidueTTL}
                   style={numInp}
                   onChange={(e) => {
-                    setBehaviorConfig((prev) => {
-                      const next = {
-                        ...prev,
-                        burpResidueTTL: Math.max(0, Math.floor(Number(e.target.value))),
-                      };
-                      saveBehaviorConfigToLS(next);
-                      return next;
+                    setDraft((d) => {
+                      const prev = d.behaviorConfig ?? behaviorConfig;
+                      return { ...d, behaviorConfig: { ...prev, burpResidueTTL: Math.max(0, Math.floor(Number(e.target.value))) } };
                     });
-                    setSaveStatus('unsaved');
+                    markUnsaved();
                   }}
                 />
               </label>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                  fontSize: 10,
-                  color: '#666',
-                }}
-              >
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 10, color: '#666' }}>
                 <span title="How many animation ticks the brown poo residue stays on the floor before fading out completely." style={{ cursor: 'help' }}>
                   Poo residue TTL
                 </span>
@@ -808,15 +647,11 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                   value={behaviorConfig.pooResidueTTL}
                   style={numInp}
                   onChange={(e) => {
-                    setBehaviorConfig((prev) => {
-                      const next = {
-                        ...prev,
-                        pooResidueTTL: Math.max(0, Math.floor(Number(e.target.value))),
-                      };
-                      saveBehaviorConfigToLS(next);
-                      return next;
+                    setDraft((d) => {
+                      const prev = d.behaviorConfig ?? behaviorConfig;
+                      return { ...d, behaviorConfig: { ...prev, pooResidueTTL: Math.max(0, Math.floor(Number(e.target.value))) } };
                     });
-                    setSaveStatus('unsaved');
+                    markUnsaved();
                   }}
                 />
               </label>
@@ -828,54 +663,21 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
               return (
                 <div
                   key={periodKey}
-                  style={{
-                    padding: 14,
-                    border: '1px solid #2a2a2a',
-                    background: '#141414',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                  }}
+                  style={{ padding: 14, border: '1px solid #2a2a2a', background: '#141414', display: 'flex', flexDirection: 'column', gap: 10 }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      gap: 8,
-                    }}
-                  >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
                     <h2
-                      title="Each roll decides whether the pet keeps walking or switches to one of these behaviors. Chance is the probability; min and max are duration bounds in animation ticks."
-                      style={{
-                        fontSize: 10,
-                        color: '#555',
-                        letterSpacing: 1,
-                        cursor: 'help',
-                      }}
+                      title="Each roll decides whether the pet keeps walking or switches to one of these behaviors."
+                      style={{ fontSize: 10, color: '#555', letterSpacing: 1, cursor: 'help' }}
                     >
                       {periodKey.toUpperCase()} ROLLS
                     </h2>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: total > 1 ? '#d77' : '#777',
-                      }}
-                    >
+                    <span style={{ fontSize: 10, color: total > 1 ? '#d77' : '#777' }}>
                       total {percent(total)} · walk {percent(Math.max(0, 1 - total))}
                     </span>
                   </div>
 
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                      fontSize: 10,
-                      color: '#666',
-                    }}
-                  >
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 10, color: '#666' }}>
                     <span title="Randomized number of walking ticks before the pet makes the next behavior roll." style={{ cursor: 'help' }}>
                       Walk budget
                     </span>
@@ -885,12 +687,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                         min={0}
                         value={period.walkBudgetMin}
                         style={numInp}
-                        onChange={(e) =>
-                          updatePeriod(periodKey, (prev) => ({
-                            ...prev,
-                            walkBudgetMin: Math.max(0, Number(e.target.value)),
-                          }))
-                        }
+                        onChange={(e) => updatePeriod(periodKey, (prev) => ({ ...prev, walkBudgetMin: Math.max(0, Number(e.target.value)) }))}
                       />
                       <span>to</span>
                       <input
@@ -898,12 +695,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                         min={0}
                         value={period.walkBudgetMax}
                         style={numInp}
-                        onChange={(e) =>
-                          updatePeriod(periodKey, (prev) => ({
-                            ...prev,
-                            walkBudgetMax: Math.max(0, Number(e.target.value)),
-                          }))
-                        }
+                        onChange={(e) => updatePeriod(periodKey, (prev) => ({ ...prev, walkBudgetMax: Math.max(0, Number(e.target.value)) }))}
                       />
                     </span>
                   </label>
@@ -921,11 +713,11 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                     }}
                   >
                     <span>Mode</span>
-                    <span title="Probability that this behavior will be chosen when a day/night behavior roll happens.">Chance</span>
-                    <span title="Minimum duration for this behavior, in animation ticks." style={{ textAlign: 'right', cursor: 'help' }}>
+                    <span title="Probability that this behavior will be chosen when a roll happens.">Chance</span>
+                    <span title="Minimum duration in ticks." style={{ textAlign: 'right', cursor: 'help' }}>
                       Min
                     </span>
-                    <span title="Maximum duration for this behavior, in animation ticks." style={{ textAlign: 'right', cursor: 'help' }}>
+                    <span title="Maximum duration in ticks." style={{ textAlign: 'right', cursor: 'help' }}>
                       Max
                     </span>
                   </div>
@@ -947,15 +739,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                         <span title={`Behavior: ${behaviorKey}`} style={{ color: '#999' }}>
                           {behaviorKey}
                         </span>
-                        <label
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'minmax(0, 1fr) 38px',
-                            alignItems: 'center',
-                            gap: 6,
-                            minWidth: 0,
-                          }}
-                        >
+                        <label style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 38px', alignItems: 'center', gap: 6, minWidth: 0 }}>
                           <input
                             type="range"
                             min={0}
@@ -973,7 +757,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                           min={0}
                           value={entry.minDuration}
                           style={{ ...numInp, width: '100%', minWidth: 0 }}
-                          title={`Minimum ${behaviorKey} duration in animation ticks.`}
+                          title={`Minimum ${behaviorKey} duration in ticks.`}
                           onChange={(e) => updateChance(periodKey, behaviorKey, 'minDuration', Number(e.target.value))}
                         />
                         <input
@@ -981,7 +765,7 @@ export default function Studio({ onNavActionsChange }: StudioProps) {
                           min={0}
                           value={entry.maxDuration}
                           style={{ ...numInp, width: '100%', minWidth: 0 }}
-                          title={`Maximum ${behaviorKey} duration in animation ticks.`}
+                          title={`Maximum ${behaviorKey} duration in ticks.`}
                           onChange={(e) => updateChance(periodKey, behaviorKey, 'maxDuration', Number(e.target.value))}
                         />
                       </div>
