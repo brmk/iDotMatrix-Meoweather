@@ -154,6 +154,31 @@ All variables have hard-coded fallbacks; `.env` is optional.
 
 ---
 
+## Inspect and reset customization
+
+```bash
+# Show the current customization (palette, sprites, behavior) and schema version
+curl http://localhost:3000/api/customization | jq .
+
+# Show the app version and schema version
+curl http://localhost:3000/api/version
+
+# Apply a palette patch and hot-swap the live render (no restart needed)
+curl -X PUT http://localhost:3000/api/customization \
+  -H 'Content-Type: application/json' \
+  -d '{"palette":[{"key":"o","day":[200,150,80]},{"key":"g","day":[100,200,100]},{"key":"s","day":[180,120,50]},{"key":"l","day":[255,220,180]},{"key":"r","day":[220,80,80]}]}'
+
+# Reset customization to code defaults (also hot-swaps)
+curl -X POST http://localhost:3000/api/customization/reset | jq .
+
+# The persisted file (sibling of runtime.json):
+cat customization.json
+```
+
+`customization.json` lives at the project root (sibling of `runtime.json`). It is gitignored — user data, not source. Missing or corrupt file → code defaults on next load. Use `POST /api/customization/reset` to delete the file and revert to defaults.
+
+---
+
 ## Health check
 
 ```bash

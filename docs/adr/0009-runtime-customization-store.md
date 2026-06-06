@@ -66,11 +66,26 @@ following the same tolerance-first pattern as `src/runtime-config.ts`:
   proportional ramp is generated via `buildFadeSteps`. Rationale: the original ramps are
   hand-crafted and cannot be reproduced exactly from the base color by any uniform factor.
 
+## Production Write Path (Phase 3)
+
+Four HTTP endpoints are added to `src/control.ts`:
+
+| Method | Path | Behavior |
+|--------|------|-----------|
+| `GET` | `/api/customization` | Returns the current `Customization` JSON (calls `loadCustomization()`) |
+| `PUT` | `/api/customization` | Accepts a partial patch `{palette?,sprites?,behavior?,scene?}`; validates via `isValidCustomization` (inside `saveCustomization`); on success persists with `saveCustomization(patch)` then hot-swaps with `setActiveCustomization(saved)`; `400` on invalid input, no write |
+| `POST` | `/api/customization/reset` | Calls `resetCustomization()` (deletes the file) then `setActiveCustomization(defaults)` |
+| `GET` | `/api/version` | Returns `{ app: string, schema: number }` — `package.json` version + `CURRENT_SCHEMA_VERSION` |
+
+The hot-swap (calling `setActiveCustomization`) means the next rendered frame picks up the change without restarting the process. Restarting persists the change because `main.ts` always calls `loadCustomization()` at startup.
+
+**Dev-only export path retained**: the Vite middleware plugins (`/save-sprites`, `/save-pet-config` in `vite.config.ts`) are kept as optional helpers for committing updated default sprites/behavior back to source. Production never depends on them. The Studio (Phase 4) writes exclusively through `PUT /api/customization`.
+
 ## Consequences
 
 - Phase 2 injects sprites/colors from the store into the renderer via `initActiveFromCustomization`
   at startup; the renderer itself stays pure.
-- Phase 3 adds `GET/PUT /api/customization` over the already-persisted store.
+- Phase 3 exposes the store over HTTP with a live hot-swap — production Studio save path.
 - The Studio (Phase 4) writes via the API, not by patching TypeScript files.
 - Adding a new customization field requires: adding it to `Customization` in `schema.ts`, providing
   a default in `defaults.ts`, and (if removing/renaming an existing field) adding a migration

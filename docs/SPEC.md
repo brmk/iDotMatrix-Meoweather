@@ -105,9 +105,37 @@ Full component detail: [[ARCHITECTURE]]
 
 ---
 
+## HTTP API surface
+
+All routes are served by the Node.js control server on port 3000.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/health` | System health (behavior, weather, brightness, schedules) |
+| `GET` | `/api/state` | SSE stream of health updates (1 s tick) |
+| `GET` | `/api/frame` | SSE stream of rendered frames (base64 PNG) |
+| `GET` | `/api/logs` | Log snapshot (`?after=ID&limit=N`) |
+| `GET` | `/api/logs/stream` | SSE log stream |
+| `GET` | `/api/customization` | Current `Customization` JSON (incl. `schemaVersion`) |
+| `PUT` | `/api/customization` | Patch customization (partial `{palette,sprites,behavior,scene}`); hot-swaps live render; `400` on invalid |
+| `POST` | `/api/customization/reset` | Reset to code defaults; hot-swaps live render |
+| `GET` | `/api/version` | `{ app: string, schema: number }` — package.json version + schema version |
+| `POST` | `/api/control/behavior` | Override active behavior |
+| `POST` | `/api/control/brightness` | Set day/night brightness (0–100) |
+| `POST` | `/api/control/night-hours` | Set or clear night hours |
+| `POST` | `/api/control/pause` | Pause/resume matrix |
+| `POST` | `/api/control/power-schedule` | Set or clear power-off schedule |
+| `POST` | `/api/control/weather` | Override weather snapshot |
+| `POST` | `/api/control/weather/clear` | Clear weather override |
+| `GET/POST` | `/api/sidecar/*` | Proxy to Python sidecar |
+
+→ [[adr/0009-runtime-customization-store]]
+
+---
+
 ## Current state
 
-Phase 6 is complete. Post-phase pet enhancements (2026-05-25):
+Phase 3 (Backend API) is complete (2026-06-06). Phase 6 post-phase pet enhancements (2026-05-25):
 
 - **`poo` behavior** — new sprite pair (POO_A/POO_B, squatting pose), brown
   fading floor residue, registered in `BEHAVIOR_ADVANCERS`.

@@ -83,13 +83,14 @@ compatibility barrels were removed once the refactor stabilized.
 A plain interval loop: fetch → render → hand to transport. No cron daemon
 needed for the MVP.
 
-### control/logs (TypeScript)
-The local control server also exposes dev/runtime observability endpoints for
-the React tools UI. App logs are captured into a bounded in-memory `LogStore`
-with cursor-based snapshot reads (`GET /api/logs`) and live tail SSE
-(`GET /api/logs/stream`). This is intentionally recent-history-only: it avoids
-unbounded memory growth during long uptimes, but does not persist logs across
-restarts and does not include Python sidecar logs.
+### control/ (TypeScript)
+The local control server (`src/control.ts`) handles all HTTP traffic on port 3000. It exposes:
+
+- **Customization API** — `GET /api/customization`, `PUT /api/customization`, `POST /api/customization/reset`, and `GET /api/version`. The `PUT` route calls `saveCustomization(patch)` then `setActiveCustomization(saved)` for a zero-restart live hot-swap; `POST /reset` calls `resetCustomization()` then hot-swaps. This is the **production write path** for the Studio; the dev-only Vite middleware (`/save-sprites`, `/save-pet-config` in `vite.config.ts`) is retained as an optional helper for committing nice default sprites/config back to source but production never depends on it.
+  → [[adr/0009-runtime-customization-store]]
+- **Observability** — app logs captured into a bounded in-memory `LogStore` with cursor-based snapshot reads (`GET /api/logs`) and live tail SSE (`GET /api/logs/stream`). Intentionally recent-history-only: avoids unbounded memory growth during long uptimes, does not persist across restarts, and does not include Python sidecar logs.
+- **Runtime control** — behavior overrides, brightness, night hours, pause, power schedule, weather overrides.
+- **Sidecar proxy** — `/api/sidecar/*` routes forwarded to Python sidecar at `config.sidecarUrl`.
 
 ### transport/ (TypeScript)
 Knows the sidecar's HTTP contract (ADR-0002) and nothing about Bluetooth. Sends
