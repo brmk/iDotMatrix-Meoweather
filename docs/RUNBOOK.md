@@ -61,9 +61,10 @@ bash scripts/deploy.sh
 
 The script:
 1. Creates `~/led-matrix/` on the Pi if it doesn't exist
-2. Rsyncs `compose.rpi.yml` to the Pi
+2. Rsyncs `compose.rpi.yml` and `scripts/watchdog-rpi.sh` to the Pi
 3. Copies `.env.example` to `~/led-matrix/.env` on the Pi (first run only — does not overwrite)
 4. Pulls updated images from GHCR and restarts the stack
+5. Installs the BLE watchdog cron job and the passwordless-reboot sudoers rule
 
 On subsequent deploys (after pushing new code to `main` and waiting for CI to build):
 
@@ -255,6 +256,19 @@ normal test runs.
   app (BLE allows one central at a time). Disconnect the vendor app first.
 - **Connects then drops** — expected occasionally over BLE; Phase 4 added
   automatic retry with backoff. No manual sidecar restart needed.
+- **BLE chip hangs on Pi (persistent "device not found" despite panel being on)** —
+  the Pi's built-in BLE chip occasionally enters a bad state after a GATT protocol
+  error where `hciconfig reset` and `bluetoothctl power on` both time out. The only
+  fix is a full Pi reboot. The BLE watchdog (`~/led-matrix/watchdog-rpi.sh`) runs
+  every 5 minutes via cron and reboots automatically after 15 minutes of consecutive
+  `connected: false` from the sidecar health endpoint. To check its state:
+  ```bash
+  ssh brmk@192.168.31.17 "cat /var/tmp/ble-watchdog-failures 2>/dev/null || echo 0"
+  ```
+  To trigger a manual reboot without waiting for the watchdog:
+  ```bash
+  ssh brmk@192.168.31.17 "sudo reboot"
+  ```
 - **Pi container cannot see Bluetooth** — confirm the sidecar service is running
   with host networking, `/run/dbus` mounted, and the host Bluetooth stack is up.
 - **Two sets of containers running on Pi** — if you had a previous deployment in

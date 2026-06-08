@@ -100,6 +100,7 @@ Full component detail: [[ARCHITECTURE]]
 | Panel silent, no error | Missing Bluetooth permission, or Mac out of range / asleep | Grant permission; check proximity |
 | "Device not found" | Panel connected to phone app (BLE: one central at a time) | Disconnect the vendor app first |
 | Connects then drops | Transient BLE drop (expected) | Sidecar auto-retries with backoff; no manual restart needed |
+| Persistent "device not found" despite panel being on | Pi BLE chip hung after GATT error; `hciconfig reset` times out | BLE watchdog reboots Pi automatically after 15 min; or `ssh pi sudo reboot` |
 | Image wrong on panel, `out.png` looks fine | Bug in sidecar PNG→panel step | Debug sidecar in isolation with `curl` |
 | Image wrong in `out.png` too | Bug in TS renderer | Fix renderer without the panel attached |
 

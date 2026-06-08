@@ -35,5 +35,6 @@ services:
       - .env
     environment:
       SIDECAR_URL: http://127.0.0.1:8765
+      TZ: ${TZ:-UTC}
     volumes:
       - ./runtime.json:/app/runtime.json

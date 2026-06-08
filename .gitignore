@@ -15,6 +15,7 @@ dist-dev/
 # Env / secrets
 .env
 .env.*
+!.env.example
 
 # Runtime user settings (persisted by the running process)
 runtime.json
