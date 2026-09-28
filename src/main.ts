@@ -4,7 +4,7 @@ import { config } from './config.js';
 import { controlState } from './control-state.js';
 import { startControlServer } from './control.js';
 import { advancePet, makePetContext, type PetContext } from './pet/index.js';
-import { drawPet, PET_Y_WALK, pixelsToPng, renderAnimation, type AnimationFrame, type PetState } from './render/index.js';
+import { drawPet, formatClock, PET_Y_WALK, pixelsToPng, renderAnimation, type AnimationFrame, type PetState } from './render/index.js';
 import { loadRuntimeConfig } from './runtime-config.js';
 import { sendToPanel } from './transport/index.js';
 import { fetchWeather } from './weather/index.js';
@@ -85,6 +85,12 @@ function applyBehaviorOverride(): void {
   controlState.behaviorOverride = null;
 }
 
+/** Text for the temperature line: undefined keeps the temperature, otherwise the clock. */
+function bottomText(now: number): string | undefined {
+  if (config.clockToggleMs <= 0) return undefined;
+  return Math.floor(now / config.clockToggleMs) % 2 === 1 ? formatClock(new Date(now)) : undefined;
+}
+
 // ---- Main loop ----
 
 async function run(): Promise<void> {
@@ -95,11 +101,12 @@ async function run(): Promise<void> {
   let snapshot = await fetchWeather();
   controlState.snapshot = snapshot;
   let frames: AnimationFrame[] = renderAnimation(snapshot);
+  let framesText: string | undefined; // text the current frames were rendered with
   let frameIdx = 0;
   let lastFetch = Date.now();
   let lastWeatherFrame = Date.now();
   let matrixOff = false;
-  let displayTick = 0;  // counts display ticks; pet advances every PET_ADVANCE_EVERY_N_TICKS
+  let displayTick = 0; // counts display ticks; pet advances every PET_ADVANCE_EVERY_N_TICKS
 
   console.log(
     `[${new Date().toISOString()}] weather code=${snapshot.weatherCode} temp=${snapshot.temperature}°C isDay=${snapshot.isDay} — ${frames.length} animation frames`,
@@ -111,6 +118,7 @@ async function run(): Promise<void> {
         snapshot = await fetchWeather();
         controlState.snapshot = snapshot;
         frames = renderAnimation(snapshot);
+        framesText = undefined;
         frameIdx = 0;
         lastWeatherFrame = Date.now();
         lastFetch = Date.now();
@@ -143,12 +151,19 @@ async function run(): Promise<void> {
 
     if (controlState.weatherDirty) {
       frames = renderAnimation(controlState.weatherOverride ?? snapshot);
+      framesText = undefined;
       frameIdx = 0;
       lastWeatherFrame = Date.now();
       controlState.weatherDirty = false;
     }
 
     const tickStart = Date.now();
+
+    const text = bottomText(tickStart);
+    if (text !== framesText) {
+      frames = renderAnimation(controlState.weatherOverride ?? snapshot, text);
+      framesText = text;
+    }
 
     // Advance weather animation frame based on wall time, independent of pet tick rate.
     if (tickStart - lastWeatherFrame >= frames[frameIdx % frames.length]!.delayMs) {

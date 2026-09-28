@@ -25,8 +25,8 @@ export * from './text/glyphs.js';
 export * from './text/measure.js';
 export * from './types.js';
 
-export function renderAnimation(snapshot: WeatherSnapshot) {
-  return renderAnimationFrames(snapshot);
+export function renderAnimation(snapshot: WeatherSnapshot, text?: string) {
+  return renderAnimationFrames(snapshot, text);
 }
 
 // ---- PNG writer (Node built-ins only) ----
