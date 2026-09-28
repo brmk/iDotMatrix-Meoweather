@@ -9,6 +9,9 @@ services:
       SCAN_TIMEOUT: ${SCAN_TIMEOUT:-15}
       DEVICE_NAME_PREFIX: ${DEVICE_NAME_PREFIX:-IDM}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      BLE_ADAPTER_MAC: ${BLE_ADAPTER_MAC:-}
+      BLE_PANEL_ADDRESS: ${BLE_PANEL_ADDRESS:-}
+      BLE_FRAGMENT_SIZE: ${BLE_FRAGMENT_SIZE:-}
     volumes:
       - /run/dbus:/run/dbus
     healthcheck:

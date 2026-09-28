@@ -180,6 +180,9 @@ All variables are read from `.env` (copy from `.env.example`). All have sensible
 | `LATITUDE` / `LONGITUDE` | `49.5535` / `25.5948`   | Your location                           |
 | `INTERVAL_SECONDS`       | `600`                   | Weather refresh interval                |
 | `CLOCK_TOGGLE_SECONDS`   | `10`                    | Seconds temperature and clock alternate (`0` = temperature only) |
+| `BLE_ADAPTER_MAC`        | —                       | Linux only: pin the panel to this Bluetooth adapter |
+| `BLE_PANEL_ADDRESS`      | —                       | Linux only: drop a stale BlueZ link to the panel on startup |
+| `BLE_FRAGMENT_SIZE`      | negotiated MTU − 3      | Cap the size of a single BLE write |
 | `SIDECAR_URL`            | `http://127.0.0.1:8765` | Local sidecar address                   |
 | `DEVICE_NAME_PREFIX`     | `IDM`                   | BLE name prefix used for discovery      |
 | `SCAN_TIMEOUT`           | `15`                    | BLE discovery timeout (seconds)         |

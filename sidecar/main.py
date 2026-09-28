@@ -27,6 +27,24 @@ from idotmatrix.modules.image import ImageMode
 from idotmatrix.screensize import ScreenSize
 from PIL import Image
 
+# Linux/BlueZ only: pin all BLE traffic to one adapter (by MAC), so hciN renumbering
+# after a reboot cannot move the panel onto an adapter another service (f.e. Home
+# Assistant) uses. bleak picks BlueZManager.get_default_adapter() when none is given.
+_BLE_ADAPTER_MAC = os.environ.get("BLE_ADAPTER_MAC", "").upper()
+if _BLE_ADAPTER_MAC:
+    from bleak.backends.bluezdbus import defs as _bluez_defs
+    from bleak.backends.bluezdbus import manager as _bluez_manager
+
+    _default_adapter = _bluez_manager.BlueZManager.get_default_adapter
+
+    def _pinned_adapter(self):
+        for path in self._adapters:
+            if self._properties[path][_bluez_defs.ADAPTER_INTERFACE].get("Address", "").upper() == _BLE_ADAPTER_MAC:
+                return path
+        return _default_adapter(self)
+
+    _bluez_manager.BlueZManager.get_default_adapter = _pinned_adapter
+
 _LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, _LOG_LEVEL, logging.INFO),
@@ -60,7 +78,36 @@ def _png_to_pixels(data: bytes) -> list[tuple[int, int, int]]:
     return list(img.getdata())
 
 
+async def _drop_stale_bluez_link() -> None:
+    """Linux/BlueZ only: disconnect a panel link kept from a previous run.
+
+    BlueZ keeps the connection when the sidecar is killed (f.e. a container restart),
+    and a connected panel stops advertising, so the scan below would never find it.
+    """
+    address = os.environ.get("BLE_PANEL_ADDRESS")
+    if not address:
+        return
+    from dbus_fast import BusType, Message
+    from dbus_fast.aio import MessageBus
+
+    device = f"dev_{address.upper().replace(':', '_')}"
+    bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+    try:
+        for hci in os.listdir("/sys/class/bluetooth"):
+            if ":" in hci:  # hciN:handle entries are connections, not adapters
+                continue
+            await bus.call(Message(
+                destination="org.bluez",
+                path=f"/org/bluez/{hci}/{device}",
+                interface="org.bluez.Device1",
+                member="Disconnect",
+            ))
+    finally:
+        bus.disconnect()
+
+
 async def _discover_device() -> tuple[str, str]:
+    await _drop_stale_bluez_link()
     logger.info(f"Scanning for BLE device with prefix '{DEVICE_NAME_PREFIX}' ({SCAN_TIMEOUT}s)...")
     async with asyncio.timeout(SCAN_TIMEOUT):
         devices = await BleakScanner.discover(return_adv=True)
@@ -140,6 +187,21 @@ async def _send_image_packets(client: IDotMatrixClient, packets: list) -> None:
     import time
     from idotmatrix.const import UUID_CHARACTERISTIC_WRITE_DATA
     ble = client._connection_manager.client
+    # The library fragments at 509 bytes, but write-without-response payloads above the
+    # negotiated ATT MTU are silently truncated (macOS Catalina negotiates 104), leaving
+    # the panel on a stale frame. BlueZ reports the default MTU until the exchange is forced.
+    if (getattr(ble, "mtu_size", 23) or 23) <= 23 and hasattr(ble._backend, "_acquire_mtu"):
+        try:
+            await ble._backend._acquire_mtu()
+        except Exception as exc:
+            logger.debug(f"MTU exchange failed: {exc}")
+    max_len = max(20, (getattr(ble, "mtu_size", 23) or 23) - 3)
+    if os.environ.get("BLE_FRAGMENT_SIZE"):
+        max_len = min(max_len, int(os.environ["BLE_FRAGMENT_SIZE"]))
+    if not getattr(_send_image_packets, "_logged", False):
+        logger.info(f"BLE mtu_size={getattr(ble, 'mtu_size', None)} -> fragment size {max_len}")
+        _send_image_packets._logged = True
+    packets = [[bytes(p[j:j + max_len]) for p in chunk for j in range(0, len(p), max_len)] for chunk in packets]
     total_packets = sum(len(chunk) for chunk in packets)
     for chunk in packets:
         for i, ble_packet in enumerate(chunk):
