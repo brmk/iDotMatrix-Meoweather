@@ -39,8 +39,10 @@ export function renderFrame(scene: SceneDescriptor, frame: number): Uint8Array {
   return buf;
 }
 
-export function renderAnimationFrames(snapshot: WeatherSnapshot): AnimationFrame[] {
+/** `text` replaces the temperature line, f.e. with the clock. */
+export function renderAnimationFrames(snapshot: WeatherSnapshot, text?: string): AnimationFrame[] {
   const scene = describeScene(snapshot);
+  if (text !== undefined) scene.temperatureText = text;
   const { count, delayMs } = ANIM[scene.icon];
 
   return Array.from({ length: count }, (_, frame) => ({

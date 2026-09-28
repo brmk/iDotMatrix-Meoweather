@@ -5,6 +5,12 @@ export function formatTemperature(temperature: WeatherSnapshot['temperature']): 
   return `${sign}${Math.abs(temperature)}°C`;
 }
 
+/** 24-hour local time, e.g. `07:05`. */
+export function formatClock(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatHumidity(humidity: number): string {
   return `${humidity}%`;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WeatherSnapshot } from '../weather/index.js';
 import { ANIM } from './icons/registry.js';
-import { formatTemperature } from './scene/format.js';
+import { formatClock, formatTemperature } from './scene/format.js';
 import { describeScene, render, renderAnimationFrames, renderFrame } from './scene/frame.js';
 import { applyNightTint } from './scene/tint.js';
 
@@ -22,6 +22,19 @@ describe('render/scene', () => {
   it('formats positive and negative temperatures consistently', () => {
     expect(formatTemperature(7)).toBe('7°C');
     expect(formatTemperature(-12)).toBe('-12°C');
+  });
+
+  it('formats the clock as zero-padded 24-hour local time', () => {
+    expect(formatClock(new Date(2026, 8, 27, 7, 5))).toBe('07:05');
+    expect(formatClock(new Date(2026, 8, 27, 23, 59))).toBe('23:59');
+  });
+
+  it('replaces the temperature line with the given text', () => {
+    const snapshot = makeSnapshot({ temperature: 18, weatherCode: 3, isDay: true });
+    const withClock = renderAnimationFrames(snapshot, '12:34');
+    const expected = renderFrame({ ...describeScene(snapshot), temperatureText: '12:34' }, 0);
+    expect(withClock[0]!.pixels).toEqual(expected);
+    expect(withClock[0]!.pixels).not.toEqual(renderAnimationFrames(snapshot)[0]!.pixels);
   });
 
   it('derives icon and temperature text from the snapshot once', () => {
