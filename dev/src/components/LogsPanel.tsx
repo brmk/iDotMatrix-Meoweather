@@ -272,7 +272,7 @@ export default function LogsPanel() {
   return (
     <div
       style={{
-        height: 'calc(100vh - 37px)',
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         background: '#0d0d0d',

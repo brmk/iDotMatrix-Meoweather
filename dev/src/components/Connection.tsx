@@ -57,9 +57,15 @@ const S = {
   spinner: CSSProperties;
 };
 
-export default function Connection() {
+interface ConnectionProps {
+  /** When supplied by a parent that already owns the /api/state SSE, skip the internal subscription. */
+  matrixPaused?: boolean;
+}
+
+export default function Connection({ matrixPaused: matrixPausedProp }: ConnectionProps = {}) {
   const [health, setHealth] = useState<SidecarHealth | null>(null);
-  const [paused, setPaused] = useState(false);
+  const [pausedInternal, setPausedInternal] = useState(false);
+  const paused = matrixPausedProp ?? pausedInternal;
   const [scanning, setScanning] = useState(false);
   const [devices, setDevices] = useState<BleDevice[] | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -88,24 +94,25 @@ export default function Connection() {
     };
   }, [fetchHealth]);
 
-  // SSE for matrixPaused state
+  // SSE for matrixPaused — only needed when parent isn't supplying the value.
   useEffect(() => {
+    if (matrixPausedProp !== undefined) return;
     const es = new EventSource('/api/state');
     es.onmessage = (e) => {
       try {
         const s = JSON.parse(e.data as string) as AppState;
-        setPaused(s.matrixPaused);
+        setPausedInternal(s.matrixPaused);
       } catch {
         /* ignore */
       }
     };
     return () => es.close();
-  }, []);
+  }, [matrixPausedProp]);
 
   const togglePause = async () => {
     const next = !paused;
     await fetch('/api/control/pause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paused: next }) });
-    setPaused(next);
+    setPausedInternal(next);
     if (!next) setTimeout(fetchHealth, 2000); // give sidecar time to reconnect
   };
 

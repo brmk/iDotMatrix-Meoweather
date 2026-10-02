@@ -1,7 +1,39 @@
 import { createServer, type Server } from 'node:http';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRequestHandler } from './control.js';
+import { resetCustomization, saveCustomization } from './customization/index.js';
 import { logStore } from './log-store.js';
+import { setActiveCustomization } from './render/pet/active.js';
+
+const _fakeCustomization = {
+  schemaVersion: 1,
+  palette: [
+    { key: 'o', day: [255, 200, 100] },
+    { key: 'g', day: [100, 200, 100] },
+    { key: 's', day: [180, 120, 50] },
+    { key: 'l', day: [255, 255, 200] },
+    { key: 'r', day: [220, 80, 80] },
+  ],
+  sprites: {},
+  behavior: {
+    day: { initial: 'walk', transitions: {} },
+    night: { initial: 'walk', transitions: {} },
+  },
+};
+
+vi.mock('./customization/index.js', () => ({
+  loadCustomization: vi.fn(() => structuredClone(_fakeCustomization)),
+  saveCustomization: vi.fn(() => structuredClone(_fakeCustomization)),
+  resetCustomization: vi.fn(() => structuredClone(_fakeCustomization)),
+}));
+
+vi.mock('./render/pet/active.js', () => ({
+  getActive: vi.fn(() => ({
+    behavior: { day: { transitions: {} }, night: { transitions: {} } },
+  })),
+  setActiveCustomization: vi.fn(),
+  initActiveFromCustomization: vi.fn(),
+}));
 
 async function startTestServer(heartbeatMs = 20): Promise<{ server: Server; baseUrl: string }> {
   const handler = createRequestHandler({ logStreamHeartbeatMs: heartbeatMs });
@@ -125,5 +157,109 @@ describe('control log endpoints', () => {
 
     const chunk = await readUntil(response, 'event: reset');
     expect(chunk).toContain('event: reset');
+  });
+});
+
+describe('control customization endpoints', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(saveCustomization).mockReturnValue(structuredClone(_fakeCustomization) as never);
+    vi.mocked(resetCustomization).mockReturnValue(structuredClone(_fakeCustomization) as never);
+  });
+
+  it('GET /api/customization returns the current customization', async () => {
+    const { server, baseUrl } = await startTestServer();
+    servers.push(server);
+
+    const response = await fetch(`${baseUrl}/api/customization`);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { schemaVersion: number };
+    expect(body.schemaVersion).toBe(1);
+  });
+
+  it('GET /api/version returns app and schema versions', async () => {
+    const { server, baseUrl } = await startTestServer();
+    servers.push(server);
+
+    const response = await fetch(`${baseUrl}/api/version`);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { app: string; schema: number };
+    expect(typeof body.app).toBe('string');
+    expect(body.schema).toBe(1);
+  });
+
+  it('PUT /api/customization saves and hot-swaps active customization', async () => {
+    const { server, baseUrl } = await startTestServer();
+    servers.push(server);
+
+    const patch = { palette: _fakeCustomization.palette };
+    const response = await fetch(`${baseUrl}/api/customization`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    expect(response.status).toBe(200);
+    expect(vi.mocked(saveCustomization)).toHaveBeenCalledOnce();
+    expect(vi.mocked(setActiveCustomization)).toHaveBeenCalledOnce();
+    const body = (await response.json()) as { schemaVersion: number };
+    expect(body.schemaVersion).toBe(1);
+  });
+
+  it('PUT /api/customization returns 400 for invalid JSON', async () => {
+    const { server, baseUrl } = await startTestServer();
+    servers.push(server);
+
+    const response = await fetch(`${baseUrl}/api/customization`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{bad json',
+    });
+    expect(response.status).toBe(400);
+    expect(vi.mocked(saveCustomization)).not.toHaveBeenCalled();
+    expect(vi.mocked(setActiveCustomization)).not.toHaveBeenCalled();
+  });
+
+  it('PUT /api/customization returns 400 for non-object body', async () => {
+    const { server, baseUrl } = await startTestServer();
+    servers.push(server);
+
+    const response = await fetch(`${baseUrl}/api/customization`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'null',
+    });
+    expect(response.status).toBe(400);
+    expect(vi.mocked(saveCustomization)).not.toHaveBeenCalled();
+  });
+
+  it('PUT /api/customization returns 400 without writing when validation fails', async () => {
+    const { server, baseUrl } = await startTestServer();
+    servers.push(server);
+
+    vi.mocked(saveCustomization).mockImplementationOnce(() => {
+      throw new Error('saveCustomization: resulting value is invalid');
+    });
+
+    const response = await fetch(`${baseUrl}/api/customization`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ palette: [] }),
+    });
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toContain('invalid');
+    expect(vi.mocked(setActiveCustomization)).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/customization/reset resets and hot-swaps', async () => {
+    const { server, baseUrl } = await startTestServer();
+    servers.push(server);
+
+    const response = await fetch(`${baseUrl}/api/customization/reset`, { method: 'POST' });
+    expect(response.status).toBe(200);
+    expect(vi.mocked(resetCustomization)).toHaveBeenCalledOnce();
+    expect(vi.mocked(setActiveCustomization)).toHaveBeenCalledOnce();
+    const body = (await response.json()) as { schemaVersion: number };
+    expect(body.schemaVersion).toBe(1);
   });
 });

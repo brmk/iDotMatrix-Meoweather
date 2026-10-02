@@ -95,12 +95,18 @@ on the pre-rendered weather buffer.
 ### Visual design tool
 
 The Studio tab in the Vite + React dev app (`dev/`) is the authoritative visual
-editor for sprite designs. Run `npm run dev:sim`, open the Studio tab, paint in
-the editor — the live preview calls `drawPetWithSprites` directly from
-`src/render/pet/draw.ts`, so colors and layout are pixel-perfect. Click
-"Save sprites" to write the approved ASCII grids directly to `src/sprites.ts`.
+editor for sprite designs and palette colors. Run `npm run dev` (full stack),
+open the Studio tab, paint in the editor — the live preview calls
+`drawPetWithSprites` directly from `src/render/pet/draw.ts` with the browser's
+active customization kept in sync, so colors and layout are pixel-perfect.
 
-No manual transcription step; no separate HTML file to keep in sync.
+> **Superseded write path (Phase 4):** The Studio now saves through the real
+> backend API (`PUT /api/customization`), persisting to `customization.json` at
+> the project root. The old "Save sprites" / "Save pet-config" buttons that wrote
+> directly to `src/sprites.ts` / `src/pet/config.ts` via Vite plugins are removed
+> from the production UI. To commit updated code defaults, use the dev-only
+> `/save-sprites` / `/save-pet-config` Vite plugin helpers directly.
+> → [[adr/0009-runtime-customization-store]]
 
 ---
 

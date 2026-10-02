@@ -36,6 +36,16 @@ sidecar and do everything else in TypeScript.
 
 ## Components
 
+### customization/ (TypeScript)
+
+Versioned runtime store for panel customization (palette, sprites, behavior). Persists to
+`customization.json` next to `runtime.json`. Code constants in `render/pet/colors.ts`,
+`sprites.ts`, and `pet/config.ts` remain as fallback defaults — the store deep-merges loaded
+values over them so missing fields are always filled. Schema versioned at `CURRENT_SCHEMA_VERSION`
+with a forward migration runner; tolerant of missing, corrupt, or future-version files (defaults
+returned in all failure modes, never throws). Consumed by the renderer starting Phase 2.
+→ [[adr/0009-runtime-customization-store]]
+
 ### weather/ (TypeScript)
 Fetches current conditions from Open-Meteo, caches the response, and maps it to
 an internal `WeatherSnapshot` (temperature, condition code, day/night). Nothing
@@ -55,7 +65,12 @@ The render subsystem is now split by concern rather than kept in a single file:
 - `render/text/` — glyph data, width measurement, and explicit text layout/draw
   helpers
 - `render/pet/` — pet palettes, sprite parsing/cache, behavior draw resolution,
-  and final overlay drawing
+  and final overlay drawing. `render/pet/active.ts` holds the runtime-active
+  customization (sprites, day/night palette, dream color, fade ramps, behavior
+  config), seeded at startup from `loadCustomization()` and hot-swappable via
+  `setActiveCustomization()`. The draw module reads exclusively from this holder;
+  `colors.ts`, `sprites.ts`, and `pet/config.ts` are now fallback defaults only.
+  → [[adr/0009-runtime-customization-store]]
 - `render/scene/` — scene description, frame composition, temperature
   formatting, and night tinting
 - `render/index.ts` — the stable render/PNG boundary exported to the rest of the
@@ -68,13 +83,14 @@ compatibility barrels were removed once the refactor stabilized.
 A plain interval loop: fetch → render → hand to transport. No cron daemon
 needed for the MVP.
 
-### control/logs (TypeScript)
-The local control server also exposes dev/runtime observability endpoints for
-the React tools UI. App logs are captured into a bounded in-memory `LogStore`
-with cursor-based snapshot reads (`GET /api/logs`) and live tail SSE
-(`GET /api/logs/stream`). This is intentionally recent-history-only: it avoids
-unbounded memory growth during long uptimes, but does not persist logs across
-restarts and does not include Python sidecar logs.
+### control/ (TypeScript)
+The local control server (`src/control.ts`) handles all HTTP traffic on port 3000. It exposes:
+
+- **Customization API** — `GET /api/customization`, `PUT /api/customization`, `POST /api/customization/reset`, and `GET /api/version`. The `PUT` route calls `saveCustomization(patch)` then `setActiveCustomization(saved)` for a zero-restart live hot-swap; `POST /reset` calls `resetCustomization()` then hot-swaps. This is the **production write path** for the Studio; the dev-only Vite middleware (`/save-sprites`, `/save-pet-config` in `vite.config.ts`) is retained as an optional helper for committing nice default sprites/config back to source but production never depends on it.
+  → [[adr/0009-runtime-customization-store]]
+- **Observability** — app logs captured into a bounded in-memory `LogStore` with cursor-based snapshot reads (`GET /api/logs`) and live tail SSE (`GET /api/logs/stream`). Intentionally recent-history-only: avoids unbounded memory growth during long uptimes, does not persist across restarts, and does not include Python sidecar logs.
+- **Runtime control** — behavior overrides, brightness, night hours, pause, power schedule, weather overrides.
+- **Sidecar proxy** — `/api/sidecar/*` routes forwarded to Python sidecar at `config.sidecarUrl`.
 
 ### transport/ (TypeScript)
 Knows the sidecar's HTTP contract (ADR-0002) and nothing about Bluetooth. Sends
@@ -115,6 +131,47 @@ repo and restarts the stack. Boot-time startup is delegated to a user-level
 - **Production deployment stays repo-defined.** Dockerfiles, compose, deploy
   scripts, and the Actions workflow live with the app code so the Pi can be
   rebuilt from repo state instead of ad-hoc host mutations.
+
+## Frontend (dev/)
+
+Vite + React UI served on port 8766 (proxies `/api` to port 3000). Three zones,
+persistent preview:
+
+```
+┌─────────────────────────── App.tsx ───────────────────────────────┐
+│  Header: DEVICE | STUDIO | DIAGNOSTICS tabs + save-status         │
+│ ┌─────────────────────┬─────────────────────────────────────────┐ │
+│ │  PreviewStage       │  Active zone                            │ │
+│ │  (always visible)   │                                         │ │
+│ │  • 32×32 canvas     │  DEVICE   — Connection + brightness +   │ │
+│ │  • rAF / SSE frame  │             night-hours + power sched.  │ │
+│ │  • weather controls │                                         │ │
+│ │  • force-behavior   │  STUDIO   — Sprite grid editor +        │ │
+│ │  • LIVE badge       │             PaletteEditor + behavior     │ │
+│ │                     │             config panels               │ │
+│ │                     │                                         │ │
+│ │                     │  DIAGNOSTICS — health strip + LogsPanel │ │
+│ └─────────────────────┴─────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+**PreviewStage** is the single source of preview truth. It owns the rAF animation
+loop (`drawPet` reads from `render/pet/active.ts` singleton), the `/api/frame`
+SSE for live remote frames, and all weather/behavior playback controls. Studio
+keeps `setActiveCustomization()` in sync whenever the draft changes, so
+PreviewStage's loop immediately reflects unsaved sprite/palette edits.
+
+**Draft flow:** Studio's `useEffect` calls `setActiveCustomization(draft)` on
+every palette/sprite/behavior change → the module-level active singleton is
+updated → PreviewStage's rAF loop picks up the change on the next animation tick
+without any prop passing.
+
+**Device zone:** composes `Connection.tsx` (BLE scan/connect/pause) with
+brightness sliders, night-hours and power-schedule `TimeRangeClock` pickers
+(all from a single `/api/state` SSE subscription), and a version footer.
+
+**Diagnostics zone:** `DiagnosticsPanel.tsx` — health strip (5 s poll of
+`/api/sidecar/health`) + `LogsPanel` (virtualized SSE log viewer).
 
 ## Non-goals (for the MVP)
 

@@ -26,9 +26,12 @@ autonomously — no phone app, no cloud, no interaction required.
 - **Test rendering against PNG files, not the panel.** The visual and the
   Bluetooth paths are debugged separately, never together.
 
-- **Sprite changes go through the Studio dev app.** Run `npm run dev:sim`, open
-  the Studio tab, edit and preview, click "Save sprites" → writes `src/sprites.ts`.
-  → [[adr/0005-pixel-pet-sprite-system]]
+- **Palette and sprite changes go through `setActiveCustomization()`.** At
+  runtime, `render/pet/active.ts` is the single source of truth for the live
+  palette, sprites, and behavior config. Code constants in `colors.ts`,
+  `sprites.ts`, and `pet/config.ts` are fallback defaults only; they are no
+  longer read directly by the draw module.
+  → [[adr/0009-runtime-customization-store]]
 
 ---
 
@@ -103,9 +106,50 @@ Full component detail: [[ARCHITECTURE]]
 
 ---
 
+## HTTP API surface
+
+All routes are served by the Node.js control server on port 3000.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/health` | System health (behavior, weather, brightness, schedules) |
+| `GET` | `/api/state` | SSE stream of health updates (1 s tick) |
+| `GET` | `/api/frame` | SSE stream of rendered frames (base64 PNG) |
+| `GET` | `/api/logs` | Log snapshot (`?after=ID&limit=N`) |
+| `GET` | `/api/logs/stream` | SSE log stream |
+| `GET` | `/api/customization` | Current `Customization` JSON (incl. `schemaVersion`) |
+| `PUT` | `/api/customization` | Patch customization (partial `{palette,sprites,behavior,scene}`); hot-swaps live render; `400` on invalid |
+| `POST` | `/api/customization/reset` | Reset to code defaults; hot-swaps live render |
+| `GET` | `/api/version` | `{ app: string, schema: number }` — package.json version + schema version |
+| `POST` | `/api/control/behavior` | Override active behavior |
+| `POST` | `/api/control/brightness` | Set day/night brightness (0–100) |
+| `POST` | `/api/control/night-hours` | Set or clear night hours |
+| `POST` | `/api/control/pause` | Pause/resume matrix |
+| `POST` | `/api/control/power-schedule` | Set or clear power-off schedule |
+| `POST` | `/api/control/weather` | Override weather snapshot |
+| `POST` | `/api/control/weather/clear` | Clear weather override |
+| `GET/POST` | `/api/sidecar/*` | Proxy to Python sidecar |
+
+→ [[adr/0009-runtime-customization-store]]
+
+---
+
 ## Current state
 
-Phase 6 is complete. Post-phase pet enhancements (2026-05-25):
+Phase 5 (UI restructure) is complete (2026-06-06). The Dev Tools web UI is now
+organised into **three zones** — **Device / Studio / Diagnostics** — with a
+persistent `PreviewStage` panel always visible on the left. The four flat tabs
+(preview / studio / logs / connection) are gone. Weather and behavior controls
+now live exclusively in `PreviewStage`; duplicated copies in Simulator and Studio
+have been removed. `Simulator.tsx` is deleted.
+
+Phase 4 (Studio + Palette Editor) was complete (2026-06-06). The Studio is the
+production customization surface: reads/writes `customization.json` through
+`GET/PUT /api/customization`. A `PaletteEditor` component supports
+adding/removing/recoloring swatches (reserved roles `o g s l r` are locked).
+Version shown in the Device panel footer via `GET /api/version`.
+
+Phase 3 (Backend API) was complete (2026-06-06). Phase 6 post-phase pet enhancements (2026-05-25):
 
 - **`poo` behavior** — new sprite pair (POO_A/POO_B, squatting pose), brown
   fading floor residue, registered in `BEHAVIOR_ADVANCERS`.
