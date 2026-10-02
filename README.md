@@ -179,7 +179,7 @@ All variables are read from `.env` (copy from `.env.example`). All have sensible
 | ------------------------ | ----------------------- | --------------------------------------- |
 | `LATITUDE` / `LONGITUDE` | `49.5535` / `25.5948`   | Your location                           |
 | `INTERVAL_SECONDS`       | `600`                   | Weather refresh interval                |
-| `SHOW_CLOCK`             | `true`                  | Clock (left) and temperature (right) share the bottom line; `false` = temperature only |
+| `SHOW_CLOCK`             | `true`                  | Temperature (left) and clock (right) share the bottom line; `false` = temperature only |
 | `BLE_ADAPTER_MAC`        | —                       | Linux only: pin the panel to this Bluetooth adapter |
 | `BLE_PANEL_ADDRESS`      | —                       | Linux only: drop a stale BlueZ link to the panel on startup |
 | `BLE_FRAGMENT_SIZE`      | negotiated MTU − 3      | Cap the size of a single BLE write |

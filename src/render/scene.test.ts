@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WeatherSnapshot } from '../weather/index.js';
 import { ANIM } from './icons/registry.js';
-import { CLOCK_COLOR } from './scene/clock-line.js';
+import { CLOCK_COLOR, compactTemperatureWidth } from './scene/clock-line.js';
 import { formatClock, formatCompactTemperature, formatTemperature } from './scene/format.js';
 import { describeScene, render, renderAnimationFrames, renderFrame } from './scene/frame.js';
 import { applyNightTint } from './scene/tint.js';
@@ -35,19 +35,21 @@ describe('render/scene', () => {
     expect(formatCompactTemperature(-24)).toBe('-24°');
   });
 
-  it('puts the clock flush left and the temperature flush right on the bottom line', () => {
+  it('puts the temperature flush left and the clock flush right on the bottom line', () => {
     const lit = (px: Uint8Array, x: number, y: number) => px[(y * 32 + x) * 3]! + px[(y * 32 + x) * 3 + 1]! + px[(y * 32 + x) * 3 + 2]! > 0;
     const column = (px: Uint8Array, x: number) => [21, 22, 23, 24, 25].some((y) => lit(px, x, y));
     // cloudy icon never reaches the text line, so the line holds only clock and temperature
     const snapshot = makeSnapshot({ temperature: -24, weatherCode: 3, isDay: true });
     const px = renderAnimationFrames(snapshot, '07:58')[0]!.pixels;
 
+    expect(compactTemperatureWidth('-24°')).toBe(13);
     expect(column(px, 0)).toBe(true);
-    expect(column(px, 16)).toBe(true);
-    expect(column(px, 17)).toBe(false);
-    expect(column(px, 18)).toBe(false);
+    expect(column(px, 12)).toBe(true);
+    expect(column(px, 13)).toBe(false);
+    expect(column(px, 14)).toBe(false);
+    expect(column(px, 15)).toBe(true);
     expect(column(px, 31)).toBe(true);
-    expect(Array.from(px.subarray((21 * 32 + 0) * 3, (21 * 32 + 0) * 3 + 3))).toEqual(CLOCK_COLOR);
+    expect(Array.from(px.subarray((21 * 32 + 15) * 3, (21 * 32 + 15) * 3 + 3))).toEqual(CLOCK_COLOR);
     expect(px).not.toEqual(renderAnimationFrames(snapshot)[0]!.pixels);
   });
 

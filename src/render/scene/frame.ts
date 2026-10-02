@@ -19,7 +19,7 @@ export interface SceneDescriptor {
   isDay: boolean;
   humidity: number;
   windSpeed: number;
-  /** When set, the bottom line shows this clock on the left and the temperature on the right. */
+  /** When set, the bottom line shows the temperature on the left and this clock on the right. */
   clockText?: string;
 }
 
