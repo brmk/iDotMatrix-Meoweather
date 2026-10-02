@@ -75,6 +75,30 @@ bash scripts/deploy.sh
 The compose stack uses `network_mode: host` and mounts `/run/dbus` because the
 BLE sidecar talks to the host Bluetooth stack through D-Bus.
 
+### Home-network URL
+
+The current Raspberry Pi host is named `matrix` and advertises itself through
+Avahi/mDNS, so the production UI is available on the local network at:
+
+```text
+http://matrix.local/
+```
+
+The Node.js control server still listens on port `3000`. Host-level Nginx
+listens on port `80` and proxies all requests to `http://127.0.0.1:3000`, with
+proxy buffering disabled so the frame, state, and log SSE streams remain live.
+The active configuration is `/etc/nginx/sites-available/default`; the original
+package configuration is preserved as
+`/etc/nginx/sites-available/default.codex-backup`.
+
+Useful checks:
+
+```bash
+ssh brmk@matrix.local hostname
+ssh brmk@matrix.local 'systemctl is-active nginx avahi-daemon'
+curl http://matrix.local/api/health
+```
+
 ## Code quality commands
 
 ```bash
