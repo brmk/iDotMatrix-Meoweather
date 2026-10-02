@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { WeatherSnapshot } from '../weather/index.js';
 import { ANIM } from './icons/registry.js';
-import { formatClock, formatTemperature } from './scene/format.js';
+import { CLOCK_COLOR } from './scene/clock-line.js';
+import { formatClock, formatCompactTemperature, formatTemperature } from './scene/format.js';
 import { describeScene, render, renderAnimationFrames, renderFrame } from './scene/frame.js';
 import { applyNightTint } from './scene/tint.js';
 
@@ -29,12 +30,30 @@ describe('render/scene', () => {
     expect(formatClock(new Date(2026, 8, 27, 23, 59))).toBe('23:59');
   });
 
-  it('replaces the temperature line with the given text', () => {
+  it('formats the compact temperature without the unit', () => {
+    expect(formatCompactTemperature(23)).toBe('23°');
+    expect(formatCompactTemperature(-24)).toBe('-24°');
+  });
+
+  it('puts the clock flush left and the temperature flush right on the bottom line', () => {
+    const lit = (px: Uint8Array, x: number, y: number) => px[(y * 32 + x) * 3]! + px[(y * 32 + x) * 3 + 1]! + px[(y * 32 + x) * 3 + 2]! > 0;
+    const column = (px: Uint8Array, x: number) => [21, 22, 23, 24, 25].some((y) => lit(px, x, y));
+    // cloudy icon never reaches the text line, so the line holds only clock and temperature
+    const snapshot = makeSnapshot({ temperature: -24, weatherCode: 3, isDay: true });
+    const px = renderAnimationFrames(snapshot, '07:58')[0]!.pixels;
+
+    expect(column(px, 0)).toBe(true);
+    expect(column(px, 16)).toBe(true);
+    expect(column(px, 17)).toBe(false);
+    expect(column(px, 18)).toBe(false);
+    expect(column(px, 31)).toBe(true);
+    expect(Array.from(px.subarray((21 * 32 + 0) * 3, (21 * 32 + 0) * 3 + 3))).toEqual(CLOCK_COLOR);
+    expect(px).not.toEqual(renderAnimationFrames(snapshot)[0]!.pixels);
+  });
+
+  it('keeps the temperature-only line when no clock is given', () => {
     const snapshot = makeSnapshot({ temperature: 18, weatherCode: 3, isDay: true });
-    const withClock = renderAnimationFrames(snapshot, '12:34');
-    const expected = renderFrame({ ...describeScene(snapshot), temperatureText: '12:34' }, 0);
-    expect(withClock[0]!.pixels).toEqual(expected);
-    expect(withClock[0]!.pixels).not.toEqual(renderAnimationFrames(snapshot)[0]!.pixels);
+    expect(renderAnimationFrames(snapshot)[0]!.pixels).toEqual(renderFrame(describeScene(snapshot), 0));
   });
 
   it('derives icon and temperature text from the snapshot once', () => {

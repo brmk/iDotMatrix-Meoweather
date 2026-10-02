@@ -5,6 +5,12 @@ export function formatTemperature(temperature: WeatherSnapshot['temperature']): 
   return `${sign}${Math.abs(temperature)}°C`;
 }
 
+/** Temperature without the unit, for the shared clock line, e.g. `-12°`. */
+export function formatCompactTemperature(temperature: WeatherSnapshot['temperature']): string {
+  const sign = temperature < 0 ? '-' : '';
+  return `${sign}${Math.abs(temperature)}°`;
+}
+
 /** 24-hour local time, e.g. `07:05`. */
 export function formatClock(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');

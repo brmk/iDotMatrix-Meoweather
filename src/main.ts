@@ -85,10 +85,9 @@ function applyBehaviorOverride(): void {
   controlState.behaviorOverride = null;
 }
 
-/** Text for the temperature line: undefined keeps the temperature, otherwise the clock. */
-function bottomText(now: number): string | undefined {
-  if (config.clockToggleMs <= 0) return undefined;
-  return Math.floor(now / config.clockToggleMs) % 2 === 1 ? formatClock(new Date(now)) : undefined;
+/** Clock for the bottom line, or undefined to show the temperature alone. */
+function clockText(now: number): string | undefined {
+  return config.showClock ? formatClock(new Date(now)) : undefined;
 }
 
 // ---- Main loop ----
@@ -101,7 +100,7 @@ async function run(): Promise<void> {
   let snapshot = await fetchWeather();
   controlState.snapshot = snapshot;
   let frames: AnimationFrame[] = renderAnimation(snapshot);
-  let framesText: string | undefined; // text the current frames were rendered with
+  let framesClock: string | undefined; // clock the current frames were rendered with
   let frameIdx = 0;
   let lastFetch = Date.now();
   let lastWeatherFrame = Date.now();
@@ -118,7 +117,7 @@ async function run(): Promise<void> {
         snapshot = await fetchWeather();
         controlState.snapshot = snapshot;
         frames = renderAnimation(snapshot);
-        framesText = undefined;
+        framesClock = undefined;
         frameIdx = 0;
         lastWeatherFrame = Date.now();
         lastFetch = Date.now();
@@ -151,7 +150,7 @@ async function run(): Promise<void> {
 
     if (controlState.weatherDirty) {
       frames = renderAnimation(controlState.weatherOverride ?? snapshot);
-      framesText = undefined;
+      framesClock = undefined;
       frameIdx = 0;
       lastWeatherFrame = Date.now();
       controlState.weatherDirty = false;
@@ -159,10 +158,11 @@ async function run(): Promise<void> {
 
     const tickStart = Date.now();
 
-    const text = bottomText(tickStart);
-    if (text !== framesText) {
-      frames = renderAnimation(controlState.weatherOverride ?? snapshot, text);
-      framesText = text;
+    // Re-render once a minute, when the clock text changes.
+    const clock = clockText(tickStart);
+    if (clock !== framesClock) {
+      frames = renderAnimation(controlState.weatherOverride ?? snapshot, clock);
+      framesClock = clock;
     }
 
     // Advance weather animation frame based on wall time, independent of pet tick rate.
