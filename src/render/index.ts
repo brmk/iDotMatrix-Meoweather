@@ -17,6 +17,7 @@ export * from './pet/colors.js';
 export * from './pet/draw.js';
 export * from './pet/sprites.js';
 export * from './pet/types.js';
+export * from './scene/clock-line.js';
 export * from './scene/format.js';
 export * from './scene/frame.js';
 export * from './scene/tint.js';
@@ -25,8 +26,8 @@ export * from './text/glyphs.js';
 export * from './text/measure.js';
 export * from './types.js';
 
-export function renderAnimation(snapshot: WeatherSnapshot, text?: string) {
-  return renderAnimationFrames(snapshot, text);
+export function renderAnimation(snapshot: WeatherSnapshot, clock?: string) {
+  return renderAnimationFrames(snapshot, clock);
 }
 
 // ---- PNG writer (Node built-ins only) ----

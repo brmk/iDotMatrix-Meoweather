@@ -14,6 +14,6 @@ export const config = {
   longitude: Number.parseFloat(env('LONGITUDE', '25.5948')),
   intervalMs: Number.parseInt(env('INTERVAL_SECONDS', '600'), 10) * 1000,
   sidecarUrl: env('SIDECAR_URL', 'http://127.0.0.1:8765'),
-  // Seconds the temperature and the clock each stay on screen; 0 shows only the temperature.
-  clockToggleMs: Number.parseInt(env('CLOCK_TOGGLE_SECONDS', '10'), 10) * 1000,
+  // Clock and temperature share the bottom line; false/0 shows only the temperature.
+  showClock: !['false', '0', 'no', 'off'].includes(env('SHOW_CLOCK', 'true').toLowerCase()),
 };
